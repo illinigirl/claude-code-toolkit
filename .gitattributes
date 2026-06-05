@@ -1,0 +1,8 @@
+# The scaffold templates are real Python / Markdown / config sources that carry
+# {{token}} markers — they are NOT Go templates. The `.tmpl` suffix makes GitHub
+# Linguist misreport the repo as "Go Template", so count them by true language.
+skills/scaffold-mcp/templates/*.py.tmpl     linguist-language=Python
+skills/scaffold-mcp/templates/*.md.tmpl     linguist-language=Markdown
+skills/scaffold-mcp/templates/*.toml.tmpl   linguist-language=TOML
+skills/scaffold-mcp/templates/*.yml.tmpl    linguist-language=YAML
+skills/scaffold-mcp/templates/*.json.tmpl   linguist-language=JSON
