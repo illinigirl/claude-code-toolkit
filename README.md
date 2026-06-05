@@ -10,6 +10,34 @@ directory under `skills/` and can be used on its own.
 |---|---|---|
 | [scaffold-mcp](skills/scaffold-mcp/) | `/scaffold-mcp` | Generate a new Python MCP server in the pure-core + thin-adapters shape — a runnable, tested, ruff-clean skeleton (FastMCP server with dual stdio/HTTP transport, a CLI adapter, one I/O module, a bundled seed, tests, CLAUDE.md, pyproject). |
 
+## What `/scaffold-mcp` generates
+
+It produces a complete, runnable project — not a snippet. One invocation gives a
+tested, ruff-clean MCP server skeleton that passes its own suite out of the box:
+
+```text
+$ /scaffold-mcp   (→ scaffold.py --name book-tracker --domain book)
+
+book-tracker/
+├── src/booktracker/
+│   ├── server.py      FastMCP server — dual stdio / HTTP transport
+│   ├── core.py        pure domain logic, no I/O — the part you replace
+│   ├── store.py       JSON-file persistence (the one I/O module)
+│   ├── cli.py         thin CLI adapter over the same core
+│   └── models.py · exports.py · __init__.py
+├── tests/             conftest + core/server tests (green on generation)
+├── data/…seed.json    bundled seed, so it runs immediately
+├── .github/workflows/ CI (pytest)
+├── CLAUDE.md          orientation: architecture + where to extend
+└── pyproject.toml · requirements.txt · LICENSE · README.md
+
+$ pytest -q      →  15 passed
+$ ruff check .   →  All checks passed!
+```
+
+You swap in your own domain logic (the skill leaves `TODO(domain)` markers); the
+structure, both transports, tests, CI, and packaging are already done.
+
 ## Install a skill
 
 Skills are discovered from `~/.claude/skills/` (personal, all projects) or a
