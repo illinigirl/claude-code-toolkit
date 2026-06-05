@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace-manifest.json",
+  "name": "claude-code-toolkit",
+  "owner": { "name": "Megan Schott" },
+  "description": "A toolkit of Claude Code skills: scaffold MCP servers, audit a repo for public release, and write session handoffs.",
+  "plugins": [
+    {
+      "name": "claude-code-toolkit",
+      "source": "./",
+      "description": "Skills: scaffold-mcp (generate a tested MCP server), public-ready (audit + publish a repo), handoff (write a PICKUP handoff).",
+      "version": "0.1.0",
+      "license": "MIT",
+      "keywords": ["mcp", "scaffold", "skills", "workflow", "publish"]
+    }
+  ]
+}
