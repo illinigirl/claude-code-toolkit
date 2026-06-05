@@ -1,0 +1,88 @@
+"""A thin CLI over the same core — so the project runs and demos WITHOUT wiring
+up an MCP client. Same functions the MCP tools call.
+
+    python -m {{PACKAGE}}.cli list [--category X] [--min-value N]
+    python -m {{PACKAGE}}.cli add "<label>" [--value N] [--category X]
+    python -m {{PACKAGE}}.cli summary
+    python -m {{PACKAGE}}.cli export [path] [--format markdown|text]
+"""
+
+from __future__ import annotations
+
+import argparse
+from datetime import date
+
+from . import core, store
+from .exports import render_report_markdown, render_report_text
+from .models import Record
+
+
+def cmd_list(args):
+    rows = core.search_{{DOMAIN_PLURAL}}(store.load_{{DOMAIN_PLURAL}}(),
+                                        category=args.category, min_value=args.min_value)
+    print(f"{len(rows)} {{DOMAIN_PLURAL}}\n")
+    for r in rows:
+        cat = f"[{r.category}]" if r.category else ""
+        print(f"  {r.label:<28} {r.value:>8g}  {cat}")
+
+
+def cmd_add(args):
+    rid = store.unique_id(args.label)
+    store.add_{{DOMAIN}}(Record(id=rid, label=args.label, value=args.value,
+                                category=args.category, date=date.today().isoformat()))
+    print(f"Added {rid}")
+
+
+def cmd_summary(args):
+    s = core.summarize(store.load_{{DOMAIN_PLURAL}}())
+    print(f"{s.count} {{DOMAIN_PLURAL}}, total {s.total:g}\n")
+    for cat, st in s.by_category.items():
+        print(f"  {cat:<20} {st.count:>4}  {st.total:>10g}")
+
+
+def cmd_export(args):
+    from pathlib import Path
+    s = core.summarize(store.load_{{DOMAIN_PLURAL}}())
+    title = f"{{PROJECT_NAME}} report — {date.today().isoformat()}"
+    if args.format == "text":
+        content, ext = render_report_text(s, title), "txt"
+    else:
+        content, ext = render_report_markdown(s, title), "md"
+    out = Path(args.path) if args.path else store.export_default_path(date.today().isoformat(), ext=ext)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(content)
+    print(f"Wrote {out}")
+
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(prog="{{PACKAGE}}", description="{{PROJECT_NAME}} CLI")
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    pl = sub.add_parser("list", help="list {{DOMAIN_PLURAL}}")
+    pl.add_argument("--category")
+    pl.add_argument("--min-value", type=float, dest="min_value")
+    pl.set_defaults(func=cmd_list)
+
+    pa = sub.add_parser("add", help="add a {{DOMAIN}}")
+    pa.add_argument("label")
+    pa.add_argument("--value", type=float, default=0.0)
+    pa.add_argument("--category")
+    pa.set_defaults(func=cmd_add)
+
+    ps = sub.add_parser("summary", help="summarize {{DOMAIN_PLURAL}}")
+    ps.set_defaults(func=cmd_summary)
+
+    pe = sub.add_parser("export", help="write a report")
+    pe.add_argument("path", nargs="?")
+    pe.add_argument("--format", choices=["markdown", "text"], default="markdown")
+    pe.set_defaults(func=cmd_export)
+    return p
+
+
+def main(argv=None):
+    args = build_parser().parse_args(argv)
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()

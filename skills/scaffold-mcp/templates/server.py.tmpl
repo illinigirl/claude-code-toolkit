@@ -1,0 +1,123 @@
+"""The MCP server — a thin adapter over the pure core.
+
+Design split: all logic lives in core/exports and is unit-tested without a
+runtime; this file only wires those to MCP tools + persistence (store.py). The
+CLI (cli.py) is a second adapter over the exact same functions.
+
+Dual transport from one codebase: stdio by default (a local Claude Desktop
+subprocess), or streamable-HTTP via --http / {{ENV_PREFIX}}_HTTP=1 so the same
+server can be added as a remote custom connector by URL. Transport selection is
+factored into _resolve_transport so it's unit-testable without binding a port.
+
+# TODO({{DOMAIN}}): rename/replace these example tools with your domain's. Keep
+# them THIN — parse args, call the pure core, persist via store, return a dict.
+# The four-part test for whether a new tool earns its place is in CLAUDE.md.
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+from datetime import date
+
+from mcp.server.fastmcp import FastMCP
+
+from . import core, store
+from .exports import render_report_markdown, render_report_text
+from .models import Record
+
+mcp = FastMCP("{{PROJECT_NAME}}")
+
+
+@mcp.tool()
+def list_{{DOMAIN_PLURAL}}(category: str | None = None, min_value: float | None = None) -> dict:
+    """List {{DOMAIN_PLURAL}} from your local data (bundled seed + anything you've
+    added) — the grounding step base Claude can't do, since it can't see your
+    data. Optional `category` / `min_value` filters."""
+    rows = core.search_{{DOMAIN_PLURAL}}(store.load_{{DOMAIN_PLURAL}}(), category=category, min_value=min_value)
+    return {"count": len(rows), "{{DOMAIN_PLURAL}}": [
+        {"id": r.id, "label": r.label, "value": r.value, "category": r.category} for r in rows]}
+
+
+@mcp.tool()
+def get_{{DOMAIN}}({{DOMAIN}}_id: str) -> dict:
+    """Full detail for one {{DOMAIN}} by id."""
+    r = core.record_index(store.load_{{DOMAIN_PLURAL}}()).get({{DOMAIN}}_id)
+    if not r:
+        return {"error": "not found", "{{DOMAIN}}_id": {{DOMAIN}}_id}
+    return {"id": r.id, "label": r.label, "value": r.value, "category": r.category,
+            "date": r.date, "note": r.note}
+
+
+@mcp.tool()
+def add_{{DOMAIN}}(label: str, value: float = 0.0, category: str | None = None,
+                  note: str | None = None, on_date: str | None = None) -> dict:
+    """Add one {{DOMAIN}} to your local data. This is the cross-session persistence
+    plain Claude lacks — it's remembered for the next conversation."""
+    rid = store.unique_id(label)
+    rec = Record(id=rid, label=label, value=value, category=category,
+                 date=on_date or date.today().isoformat(), note=note)
+    store.add_{{DOMAIN}}(rec)
+    return {"added": True, "{{DOMAIN}}_id": rid}
+
+
+@mcp.tool()
+def summarize_{{DOMAIN_PLURAL}}(category: str | None = None) -> dict:
+    """Exact roll-up of your {{DOMAIN_PLURAL}} (count, total, per-category totals) —
+    deterministic arithmetic, not an LLM estimate."""
+    rows = core.search_{{DOMAIN_PLURAL}}(store.load_{{DOMAIN_PLURAL}}(), category=category)
+    s = core.summarize(rows)
+    return {"count": s.count, "total": s.total, "by_category": {
+        c: {"count": st.count, "total": st.total} for c, st in s.by_category.items()}}
+
+
+@mcp.tool()
+def export_report(path: str | None = None, format: str = "markdown") -> dict:
+    """Write a summary report AND return it inline.
+
+    `format`: "markdown" (default — table) or "text" (plain, for pasting into
+    Notes / Reminders). With no `path`, writes to a known location under the data
+    dir (not the process cwd, which is unpredictable when Claude Desktop launches
+    the server). The `content` field is always returned, so a remote caller who
+    can't read the server's disk still gets the result."""
+    from pathlib import Path
+    s = core.summarize(store.load_{{DOMAIN_PLURAL}}())
+    title = f"{{PROJECT_NAME}} report — {date.today().isoformat()}"
+    if format == "text":
+        content, ext = render_report_text(s, title), "txt"
+    else:
+        content, ext = render_report_markdown(s, title), "md"
+    out = Path(path) if path else store.export_default_path(date.today().isoformat(), ext=ext)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(content)
+    store.record_report(title, content)
+    return {"written": str(out), "format": format, "content": content}
+
+
+def _resolve_transport(argv=None) -> tuple[str, str, int]:
+    """Decide transport from CLI flags / env. Default is stdio (Claude Desktop
+    launches the server as a subprocess). `--http` (or {{ENV_PREFIX}}_HTTP=1) serves
+    streamable-HTTP so the same server can be added as a custom *connector* by
+    URL. Factored out so it's unit-testable without binding a port."""
+    parser = argparse.ArgumentParser(prog="{{PROJECT_NAME}}", description="{{PROJECT_NAME}} MCP server")
+    parser.add_argument("--http", action="store_true",
+                        help="serve over streamable-HTTP (for use as a custom connector) instead of stdio")
+    parser.add_argument("--host", default=os.environ.get("{{ENV_PREFIX}}_HOST", "127.0.0.1"))
+    parser.add_argument("--port", type=int, default=int(os.environ.get("{{ENV_PREFIX}}_PORT", "8000")))
+    args = parser.parse_args(argv)
+    http = args.http or os.environ.get("{{ENV_PREFIX}}_HTTP", "").lower() in {"1", "true", "yes"}
+    return ("streamable-http" if http else "stdio", args.host, args.port)
+
+
+def main(argv=None) -> None:
+    transport, host, port = _resolve_transport(argv)
+    if transport == "streamable-http":
+        mcp.settings.host = host
+        mcp.settings.port = port
+        mcp.run(transport="streamable-http")
+    else:
+        mcp.run()
+
+
+if __name__ == "__main__":
+    main()

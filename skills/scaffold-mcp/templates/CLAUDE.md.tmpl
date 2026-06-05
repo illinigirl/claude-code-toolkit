@@ -1,0 +1,120 @@
+# CLAUDE.md — {{PROJECT_NAME}} guidance
+
+Read this first. It's the contract for working in this repo with an agent: what
+the pieces are, how to run and test, the design decisions, and — most
+importantly — the test for whether a new tool belongs here at all.
+
+> This repo was scaffolded from a reusable MCP-server template. The core is a
+> deliberately generic toy (records with a `value` and a `category`, a
+> deterministic summary, a Markdown export) so it runs and tests green cold.
+> Your job is to replace that toy with your real domain. Find every spot with
+> `grep -rn "TODO({{DOMAIN}})" src/`.
+
+## What this is
+
+A **self-contained MCP server**: a deterministic data plane (exact compute,
+persisted state, durable exports over your own local data) that the LLM narrates.
+No auth, no cloud, no external API — it clones and runs with zero credentials,
+because the bundled `data/{{PACKAGE}}.seed.json` is enough to exercise every tool.
+
+## Why this is an MCP and not just a prompt — the four-part test
+
+The honest test for whether a tool earns its place: **does it give the model
+something it cannot do alone?** There are exactly four such things. A tool is
+justified only if it does at least one; if it does none, it's overkill — let
+Claude just answer.
+
+| # | The need | Plain Claude | A tool |
+|---|---|---|---|
+| 1 | **Persist state across sessions** | ❌ forgets between chats | ✅ `state.json` (your added {{DOMAIN_PLURAL}}) |
+| 2 | **Cause a side effect / durable artifact** | ❌ can't write files | ✅ `export_report` writes + returns a report |
+| 3 | **Access private / live data** | ❌ doesn't know your data | ✅ reads your local seed + state |
+| 4 | **Compute something exact** | ❌ hand-waves arithmetic | ✅ `summarize` — deterministic totals |
+
+This scaffold hits all four on purpose, so the pattern is visible. When you add
+or change a tool, ask which of the four it serves. If the answer is "none —
+Claude already does this well," it probably shouldn't be a tool.
+
+## Architecture: pure core + thin adapters
+
+The logic is pure and I/O-free, so it's all unit-tested without a runtime. Two
+adapters (MCP server, CLI) wire the same functions to the outside world; one
+module (`store.py`) is the *only* thing that touches the filesystem.
+
+| Module | Role | Touches I/O? |
+|---|---|---|
+| `models.py` | dataclasses: `Record`, `CategoryStat`, `Summary` | no |
+| `core.py` | filter + the deterministic `summarize` roll-up | no |
+| `exports.py` | render a report to Markdown / plain text | no |
+| `store.py` | JSON persistence: bundled seed + mutable state | **yes** |
+| `server.py` | MCP adapter (FastMCP), dual stdio/HTTP transport | via store |
+| `cli.py` | CLI adapter | via store |
+
+Keep new logic in the pure modules and test it directly; let the adapters stay
+thin (parse args → call core → persist → return a dict).
+
+## Run + test
+
+```bash
+pip install -e ".[test]"            # pytest + the MCP SDK
+python -m pytest -q                 # full suite
+ruff check .                        # if ruff is installed
+
+# CLI — runs the whole flow without an MCP client (stdlib only):
+PYTHONPATH=src python -m {{PACKAGE}}.cli list
+PYTHONPATH=src python -m {{PACKAGE}}.cli add "My {{DOMAIN_TITLE}}" --value 5 --category alpha
+PYTHONPATH=src python -m {{PACKAGE}}.cli summary
+PYTHONPATH=src python -m {{PACKAGE}}.cli export
+
+# MCP server — the only thing that needs a dependency:
+PYTHONPATH=src python -m {{PACKAGE}}.server            # stdio (Claude Desktop)
+PYTHONPATH=src python -m {{PACKAGE}}.server --http     # streamable-HTTP connector
+```
+
+Mutable state lives in `{{ENV_PREFIX}}_DATA_DIR` (default `~/.{{PROJECT_NAME}}`),
+not the repo. Point it at a temp dir to experiment without touching real data:
+`export {{ENV_PREFIX}}_DATA_DIR=/tmp/{{PACKAGE}}`.
+
+## Design decisions (the patterns worth keeping as you extend)
+
+- **Deterministic math in the data plane; the LLM narrates.** `summarize` is an
+  exact function — counts and totals are never left to the model. The model's
+  job is selection and conversation, not arithmetic.
+- **Bundled seed vs. mutable state, kept apart.** `data/{{PACKAGE}}.seed.json`
+  ships read-only so the repo runs cold; your added records and generated reports
+  go in a gitignored `state.json` under a user dir. Personal data never lands in
+  a public commit.
+- **Server-side I/O degrades gracefully for remote callers.** `export_report`
+  returns the rendered content inline (not just a path) and defaults to a known
+  data-dir location, not the process cwd — so a caller who can't read the
+  server's disk still gets the result. When you add an importer, accept pasted
+  content, not only a server-side file path.
+- **Dual transport from one codebase.** `main()` defaults to stdio (Claude
+  Desktop launches the server as a subprocess); `--http` / `{{ENV_PREFIX}}_HTTP=1`
+  serves streamable-HTTP so the same server can be a remote custom connector.
+  `_resolve_transport` is factored out so it's testable without binding a port.
+- **Tool-layer integration tests, not just helper unit tests.** `test_core.py`
+  covers the pure functions; `test_server_tools.py` drives the actual tool
+  surface in-process against a sandboxed data dir (round-trip + error paths).
+
+## A data-shape assumption to retire before it bites
+
+`load_{{DOMAIN_PLURAL}}` reads the whole seed + state into memory and the tools
+operate on the full list. That's correct while the data is small. If your real
+domain accumulates unbounded records, this silently gets slow / wrong as the data
+grows past what you can hold or scan in one pass — a regression that ships with no
+code change. When that becomes plausible, paginate / index / move to a real store,
+and write the assumption down as an expiring contract ("valid while state fits in
+memory; revisit at N records").
+
+## Deliberate simplifications (each a good first task)
+
+These are honest limitations of the scaffold, and the natural places to extend:
+
+1. **The domain is a toy.** Replace `Record`'s fields, the `summarize` logic, the
+   seed, and the tool names with your real domain. Start at `grep -rn "TODO({{DOMAIN}})" src/`.
+2. **No update / delete tools.** Add them on `store.py` if your domain needs CRUD,
+   mirroring `add_{{DOMAIN}}`.
+3. **Plural is naïve** (`{{DOMAIN}}` + "s"). If that read wrong, rename the tools.
+4. **No bulk import.** Add an importer on `store.py` that accepts pasted content
+   (remote-safe), not only a server-side path.

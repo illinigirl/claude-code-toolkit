@@ -1,0 +1,102 @@
+# {{PROJECT_NAME}}
+
+A self-contained [MCP](https://modelcontextprotocol.io) server in the
+**pure-core + thin-adapters** shape: a deterministic data plane — exact compute,
+persisted state, durable exports over your own local data — that Claude narrates.
+
+No cloud, no API keys, no database. Clone it and it runs.
+
+```bash
+pip install -e ".[test]" && python -m pytest -q
+PYTHONPATH=src python -m {{PACKAGE}}.cli list
+PYTHONPATH=src python -m {{PACKAGE}}.cli summary
+```
+
+> **Scaffolded skeleton.** The domain here is a generic toy — {{DOMAIN_PLURAL}}
+> with a `value` and a `category`, a deterministic summary, a Markdown export —
+> so the repo is green the moment it's generated. Replace it with your real
+> domain: `grep -rn "TODO({{DOMAIN}})" src/`. `CLAUDE.md` is the orientation file.
+
+## Why an MCP (and not just asking Claude)?
+
+A tool only earns its place if it does something the model *can't*. There are
+four such things, and this scaffold demonstrates all four:
+
+| Need | Plain Claude | This server |
+|---|---|---|
+| Remember what you added across chats | ❌ no memory | ✅ persistent `state.json` |
+| Produce a report you can keep | ❌ can't write files | ✅ `export_report` (file + inline) |
+| Work over *your* data | ❌ doesn't know it | ✅ local seed + state |
+| Total things up exactly | ❌ hand-waves the math | ✅ deterministic `summarize` |
+
+The model does the *creative / conversational* part; the server supplies the
+memory, the artifact, the private data, and the exact arithmetic.
+
+## What it does (the example tools)
+
+- **`list_{{DOMAIN_PLURAL}}`** — query your local data, optionally filtered.
+- **`add_{{DOMAIN}}`** — persist a record (the cross-session memory).
+- **`summarize_{{DOMAIN_PLURAL}}`** — exact count / total / per-category roll-up.
+- **`export_report`** — write a Markdown or text report **and return it inline**
+  (so a remote caller who can't read the server's disk still gets it).
+- **`get_{{DOMAIN}}`** — full detail for one record.
+
+## Architecture
+
+Pure core + thin adapters. All logic is I/O-free and unit-tested without a
+runtime; the MCP server and the CLI are two adapters over the same functions, and
+one module does all the file I/O.
+
+```
+src/{{PACKAGE}}/
+  models.py    Record · CategoryStat · Summary                      (pure)
+  core.py      filter + deterministic summarize                     (pure)
+  exports.py   Markdown / text report rendering                     (pure)
+  store.py     JSON persistence: bundled seed + mutable state   (the only I/O)
+  server.py    MCP adapter (FastMCP), dual stdio/HTTP transport
+  cli.py       CLI adapter
+data/{{PACKAGE}}.seed.json   bundled starter data (clones-and-runs)
+```
+
+The bundled seed ships in the repo; your mutable state (added records, generated
+reports) lives in a gitignored `state.json` under `~/.{{PROJECT_NAME}}/` — so your
+real data never lands in a commit.
+
+## Use it from Claude
+
+The server runs over **two transports** from one codebase — stdio for a local
+Claude Desktop subprocess, or streamable-HTTP so it can be added as a remote
+*custom connector* by URL.
+
+**Local (stdio) — Claude Desktop.** After `pip install -e .`, add to your config:
+
+```json
+{
+  "mcpServers": {
+    "{{PROJECT_NAME}}": {
+      "command": "/path/to/{{PROJECT_NAME}}/.venv/bin/{{PROJECT_NAME}}"
+    }
+  }
+}
+```
+
+**As a custom connector (HTTP).**
+
+```bash
+{{PROJECT_NAME}} --http --port 8765          # or {{ENV_PREFIX}}_HTTP=1
+# then add http://localhost:8765/mcp as a custom connector
+```
+
+## For reviewers — drive it with Claude Code
+
+It's built to be worked in by an agent. Good first tasks, easiest first:
+
+1. **Run the tests** — `pip install -e ".[test]" && python -m pytest -q`.
+2. **Replace the toy domain** — start at `grep -rn "TODO({{DOMAIN}})" src/`:
+   change `Record`'s fields, the `summarize` logic, the seed, and the tool names.
+3. **Add CRUD** — `update_{{DOMAIN}}` / `delete_{{DOMAIN}}` on `store.py`.
+4. **Add a remote-safe importer** that accepts pasted content, not just a path.
+
+## License
+
+[MIT](LICENSE).

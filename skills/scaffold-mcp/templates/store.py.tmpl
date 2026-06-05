@@ -1,0 +1,107 @@
+"""Persistence — the ONLY module that touches the filesystem.
+
+Two locations, deliberately separate:
+
+- the **bundled seed** (`data/{{PACKAGE}}.seed.json`) ships in the repo, read-only,
+  so the project clones-and-runs with zero setup;
+- **mutable state** (`state.json`: your added {{DOMAIN_PLURAL}} + generated report
+  history) lives in a user data dir ({{ENV_PREFIX}}_DATA_DIR, default
+  ~/.{{PROJECT_NAME}}) and is gitignored — a reviewer's experiments never dirty
+  the repo, and real data never lands in a public commit.
+
+Keeping all I/O in this one module is what lets every other module stay pure and
+unit-testable without a runtime.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+from pathlib import Path
+
+from .models import Record
+
+_PKG_ROOT = Path(__file__).resolve().parents[2]  # repo root when run from a clone
+
+
+def seed_path() -> Path:
+    return Path(os.environ.get("{{ENV_PREFIX}}_SEED", _PKG_ROOT / "data" / "{{PACKAGE}}.seed.json"))
+
+
+def data_dir() -> Path:
+    d = Path(os.environ.get("{{ENV_PREFIX}}_DATA_DIR", Path.home() / ".{{PROJECT_NAME}}"))
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def state_path() -> Path:
+    return data_dir() / "state.json"
+
+
+# ── State (mutable) ─────────────────────────────────────────────────
+
+def load_state() -> dict:
+    p = state_path()
+    if not p.exists():
+        return {"records": [], "reports": []}
+    return json.loads(p.read_text())
+
+
+def save_state(state: dict) -> None:
+    state_path().write_text(json.dumps(state, indent=2))
+
+
+# ── {{DOMAIN_TITLE}} data (bundled seed + your added records) ────────
+
+def load_{{DOMAIN_PLURAL}}() -> list[Record]:
+    raw = json.loads(seed_path().read_text())
+    records = [Record.from_dict(r) for r in raw.get("{{DOMAIN_PLURAL}}", [])]
+    records += [Record.from_dict(r) for r in load_state().get("records", [])]
+    return records
+
+
+def _slug(text: str) -> str:
+    s = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+    return s or "{{DOMAIN}}"
+
+
+def existing_ids() -> set[str]:
+    return {r.id for r in load_{{DOMAIN_PLURAL}}()}
+
+
+def unique_id(base: str) -> str:
+    """A slug not already taken by a seed or added record."""
+    taken = existing_ids()
+    rid = _slug(base)
+    candidate, n = rid, 2
+    while candidate in taken:
+        candidate, n = f"{rid}-{n}", n + 1
+    return candidate
+
+
+def add_{{DOMAIN}}(record: Record) -> None:
+    """Append one {{DOMAIN}} to the mutable state — the cross-session memory that
+    plain Claude lacks."""
+    state = load_state()
+    state.setdefault("records", []).append({
+        "id": record.id, "label": record.label, "value": record.value,
+        "category": record.category, "date": record.date, "note": record.note,
+    })
+    save_state(state)
+
+
+def record_report(title: str, content: str) -> None:
+    """Log a generated report to history (a durable artifact, remembered)."""
+    state = load_state()
+    state.setdefault("reports", []).append({"title": title, "content": content})
+    save_state(state)
+
+
+def export_default_path(name: str, ext: str = "md") -> Path:
+    """Where export writes when no path is given: a KNOWN location under the data
+    dir (not the process cwd, which is unpredictable when Claude Desktop launches
+    the server). Creates the dir."""
+    d = data_dir() / "reports"
+    d.mkdir(parents=True, exist_ok=True)
+    return d / f"{name}.{ext}"

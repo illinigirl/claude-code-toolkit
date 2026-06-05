@@ -1,0 +1,56 @@
+"""Domain models for {{PROJECT_NAME}}.
+
+Plain dataclasses, no I/O. Everything the core reasons over lives here, so the
+whole pure layer is testable without an MCP runtime, a network, or a file.
+
+# TODO({{DOMAIN}}): replace these illustrative fields with your real domain
+# model. The *shape* — a record type plus a computed summary — is what the rest
+# of the scaffold is built around; the field names are just a runnable example.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+
+@dataclass(frozen=True)
+class Record:
+    """One {{DOMAIN}}. `value` is the numeric field the summary aggregates;
+    `category` groups records in the summary. Adapt freely — keep it frozen and
+    I/O-free so the core stays pure."""
+
+    id: str
+    label: str
+    value: float = 0.0
+    category: str | None = None
+    date: str | None = None
+    note: str | None = None
+
+    @classmethod
+    def from_dict(cls, d: dict) -> Record:
+        return cls(
+            id=d["id"],
+            label=d["label"],
+            value=float(d.get("value") or 0.0),
+            category=d.get("category"),
+            date=d.get("date"),
+            note=d.get("note"),
+        )
+
+
+@dataclass(frozen=True)
+class CategoryStat:
+    """Per-category roll-up inside a Summary."""
+
+    count: int
+    total: float
+
+
+@dataclass(frozen=True)
+class Summary:
+    """The deterministic roll-up the data plane computes (exact, never the LLM's
+    guess). `by_category` maps a category name to its CategoryStat."""
+
+    count: int
+    total: float
+    by_category: dict[str, CategoryStat] = field(default_factory=dict)

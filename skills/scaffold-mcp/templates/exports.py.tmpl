@@ -1,0 +1,32 @@
+"""Render a {{DOMAIN}} report to Markdown or plain text. Pure string-building —
+no file writes happen here (store.py / server.py own that). The rendered content
+is returned inline so a remote caller who can't read the server's disk still
+gets the result.
+"""
+
+from __future__ import annotations
+
+from .models import Summary
+
+
+def render_report_markdown(summary: Summary, title: str) -> str:
+    """A Markdown report (table) — renders in Claude and note apps."""
+    lines = [
+        f"# {title}",
+        "",
+        f"**{summary.count} {{DOMAIN_PLURAL}}** · total **{summary.total:g}**",
+        "",
+    ]
+    if summary.by_category:
+        lines += ["| Category | Count | Total |", "|---|---|---|"]
+        for cat, stat in summary.by_category.items():
+            lines.append(f"| {cat} | {stat.count} | {stat.total:g} |")
+    return "\n".join(lines) + "\n"
+
+
+def render_report_text(summary: Summary, title: str) -> str:
+    """A plain-text report — for pasting into Notes / Reminders / a message."""
+    lines = [title, "", f"{summary.count} {{DOMAIN_PLURAL}}, total {summary.total:g}", ""]
+    for cat, stat in summary.by_category.items():
+        lines.append(f"  {cat}: {stat.count} ({stat.total:g})")
+    return "\n".join(lines) + "\n"

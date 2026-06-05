@@ -1,0 +1,51 @@
+"""Pure domain logic for {{PROJECT_NAME}} — no I/O, fully unit-tested on stdlib.
+
+# TODO({{DOMAIN}}): this is where your real computation goes. The scaffold ships
+# a filter plus a deterministic summary so the tool layer has something exact to
+# return; replace the bodies with your domain's logic and keep every function
+# here pure (inputs in, value out — no files, no network, no globals).
+"""
+
+from __future__ import annotations
+
+from collections import defaultdict
+
+from .models import CategoryStat, Record, Summary
+
+
+def search_{{DOMAIN_PLURAL}}(
+    records: list[Record],
+    category: str | None = None,
+    min_value: float | None = None,
+) -> list[Record]:
+    """Filter {{DOMAIN_PLURAL}} by simple constraints. Pure over its input."""
+    out = list(records)
+    if category is not None:
+        out = [r for r in out if r.category == category]
+    if min_value is not None:
+        out = [r for r in out if r.value >= min_value]
+    return out
+
+
+def summarize(records: list[Record]) -> Summary:
+    """Exact roll-up: total count, summed value, and per-category counts/totals.
+    Deterministic arithmetic in the data plane — the model narrates this, it
+    never estimates it. (This is reason #4 a tool earns its place; see CLAUDE.md.)
+    """
+    by: dict[str, list[Record]] = defaultdict(list)
+    for r in records:
+        by[r.category or "uncategorized"].append(r)
+    by_category = {
+        cat: CategoryStat(count=len(rs), total=round(sum(r.value for r in rs), 4))
+        for cat, rs in sorted(by.items())
+    }
+    return Summary(
+        count=len(records),
+        total=round(sum(r.value for r in records), 4),
+        by_category=by_category,
+    )
+
+
+def record_index(records: list[Record]) -> dict[str, Record]:
+    """id → Record, for cheap lookup by the adapters."""
+    return {r.id: r for r in records}
