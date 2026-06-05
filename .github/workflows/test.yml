@@ -1,0 +1,23 @@
+name: test
+on:
+  push:
+  pull_request:
+
+# Validates the scaffold-mcp skill end-to-end: generate a project, then prove the
+# generated repo installs, lints, and tests clean.
+jobs:
+  scaffold-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Scaffold a project
+        run: python3 skills/scaffold-mcp/scaffold.py --name ci-demo --domain widget --dest /tmp
+      - name: Install + lint + test the generated project
+        working-directory: /tmp/ci-demo
+        run: |
+          pip install -e ".[test]" ruff
+          ruff check .
+          python -m pytest -q

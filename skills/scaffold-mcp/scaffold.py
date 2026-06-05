@@ -35,6 +35,7 @@ MANIFEST: dict[str, str] = {
     "pyproject.toml.tmpl": "pyproject.toml",
     "requirements.txt.tmpl": "requirements.txt",
     "gitignore.tmpl": ".gitignore",
+    "ci.yml.tmpl": ".github/workflows/test.yml",
     "LICENSE.tmpl": "LICENSE",
     "README.md.tmpl": "README.md",
     "CLAUDE.md.tmpl": "CLAUDE.md",
