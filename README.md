@@ -12,6 +12,7 @@ room to grow into agents and MCP servers.
 | [public-ready](skills/public-ready/) | `/public-ready` | Audit a repo for public release — scan tracked files for secrets, PII, and interview/portfolio framing; verify tests + lint are green; check LICENSE / README / .gitignore / CI — then publish (`gh repo create`) on your approval. |
 | [handoff](skills/handoff/) | `/handoff` | Write a `PICKUP-*.md` session handoff (task, what's done, what's in flight, next steps, key paths, working norms) so a fresh session resumes cold. Stays local, never committed. |
 | [failure-scan](skills/failure-scan/) | `/failure-scan` | Review the current diff against the failure-mode catalog — the judgment classes a hook can't catch (plausible-but-wrong AI output, biased per-segment stats, dispatch-order coupling) — reporting concrete risks with each class's verify questions and fix pattern. |
+| [design-note](skills/design-note/) | `/design-note` | Write a structured `<feature>-DESIGN.md` before building — problem, the core reframe, the design with options + tradeoffs, edge cases, and open questions to decide at build time. |
 
 ## What `/scaffold-mcp` generates
 

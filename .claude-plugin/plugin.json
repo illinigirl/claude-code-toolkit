@@ -1,10 +1,10 @@
 {
   "name": "claude-code-toolkit",
   "displayName": "Claude Code Toolkit",
-  "description": "Skills to scaffold MCP servers, audit repos for public release, write session handoffs, and review a diff against a failure-mode catalog — plus a PostToolUse hook that auto-flags risky patterns.",
-  "version": "0.2.0",
+  "description": "Skills to scaffold MCP servers, audit repos for public release, write session handoffs, write structured design notes, and review a diff against a failure-mode catalog — plus a PostToolUse hook that auto-flags risky patterns.",
+  "version": "0.3.0",
   "author": { "name": "Megan Schott" },
   "repository": "https://github.com/illinigirl/claude-code-toolkit",
   "license": "MIT",
-  "keywords": ["mcp", "scaffold", "skills", "workflow", "publish", "hooks", "failure-modes", "code-review"]
+  "keywords": ["mcp", "scaffold", "skills", "workflow", "publish", "hooks", "failure-modes", "code-review", "design"]
 }
