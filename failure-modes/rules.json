@@ -1,0 +1,13 @@
+{
+  "_comment": "Machine-readable grep-able rules for the failure-mode hook. The human-readable catalog (catalog.md) is the source of intent; only catalog entries tagged 'hook' (high-signal, low false-positive) belong here. A rule fires when, for a file matching `globs`, ANY `any_match` pattern is present AND NONE of `absent` are. Keep this list small and high-signal — a noisy hook gets ignored.",
+  "rules": [
+    {
+      "id": "silent-data-growth",
+      "name": "Silent regression from data/scale growth",
+      "globs": ["*.py", "*.ts", "*.tsx", "*.js", "*.jsx", "*.mjs"],
+      "any_match": ["ScanCommand", "\\.scan\\(", "FilterExpression"],
+      "absent": ["LastEvaluatedKey", "ExclusiveStartKey", "get_paginator", "Paginator", "paginate"],
+      "message": "Scan/Filter without pagination — fine until the table outgrows one ~1MB page, then it silently returns partial/empty results with no error. Paginate (LastEvaluatedKey loop) or use a keyed Query/GSI. Catalog: silent-data-growth."
+    }
+  ]
+}

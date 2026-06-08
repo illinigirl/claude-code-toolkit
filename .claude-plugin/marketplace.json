@@ -2,15 +2,15 @@
   "$schema": "https://json.schemastore.org/claude-code-marketplace-manifest.json",
   "name": "claude-code-toolkit",
   "owner": { "name": "Megan Schott" },
-  "description": "A toolkit of Claude Code skills: scaffold MCP servers, audit a repo for public release, and write session handoffs.",
+  "description": "Claude Code skills + a failure-mode hook: scaffold MCP servers, audit a repo for public release, write session handoffs, and catch classes of bugs before they ship.",
   "plugins": [
     {
       "name": "claude-code-toolkit",
       "source": "./",
-      "description": "Skills: scaffold-mcp (generate a tested MCP server), public-ready (audit + publish a repo), handoff (write a PICKUP handoff).",
-      "version": "0.1.0",
+      "description": "Skills: scaffold-mcp (generate a tested MCP server), public-ready (audit + publish a repo), handoff (write a PICKUP handoff), failure-scan (review a diff against a failure-mode catalog). Plus a PostToolUse hook that auto-flags risky patterns (e.g. unpaginated DynamoDB scans).",
+      "version": "0.2.0",
       "license": "MIT",
-      "keywords": ["mcp", "scaffold", "skills", "workflow", "publish"]
+      "keywords": ["mcp", "scaffold", "skills", "workflow", "publish", "hooks", "failure-modes", "code-review"]
     }
   ]
 }

@@ -21,3 +21,18 @@ jobs:
           pip install -e ".[test]" ruff
           ruff check .
           python -m pytest -q
+
+  failure-modes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Hook regression test
+        run: python3 failure-modes/test_hook.py
+      - name: Manifests are valid JSON
+        run: |
+          python3 -m json.tool .claude-plugin/plugin.json     > /dev/null
+          python3 -m json.tool .claude-plugin/marketplace.json > /dev/null
+          python3 -m json.tool hooks/hooks.json               > /dev/null
