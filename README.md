@@ -13,6 +13,7 @@ room to grow into agents and MCP servers.
 | [handoff](skills/handoff/) | `/handoff` | Write a `PICKUP-*.md` session handoff (task, what's done, what's in flight, next steps, key paths, working norms) so a fresh session resumes cold. Stays local, never committed. |
 | [failure-scan](skills/failure-scan/) | `/failure-scan` | Review the current diff against the failure-mode catalog — the judgment classes a hook can't catch (plausible-but-wrong AI output, biased per-segment stats, dispatch-order coupling) — reporting concrete risks with each class's verify questions and fix pattern. |
 | [design-note](skills/design-note/) | `/design-note` | Write a structured `<feature>-DESIGN.md` before building — problem, the core reframe, the design with options + tradeoffs, edge cases, and open questions to decide at build time. |
+| [note](skills/note/) | `/note` | Frictionless note-to-self — dump a thought and it's auto-classified into a bucket (`note`/`skill`/`mcp`/`todo`) under `~/.claude/notes/`, no category-picking. Bare `/note` lists everything; `/note <bucket>` lists one. |
 
 ## What `/scaffold-mcp` generates
 
@@ -93,6 +94,8 @@ claude-code-toolkit/
     public-ready/       SKILL.md · audit.sh
     handoff/            SKILL.md · template.md
     failure-scan/       SKILL.md — review a diff against the catalog
+    design-note/        SKILL.md — write a <feature>-DESIGN.md
+    note/               SKILL.md — frictionless note-to-self capture
   hooks/
     hooks.json          registers the failure-mode PostToolUse hook
   failure-modes/
