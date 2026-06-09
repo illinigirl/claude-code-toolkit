@@ -42,10 +42,21 @@ rsync -a --exclude '.venv' --exclude '__pycache__' --exclude '.pytest_cache' \
   --exclude '.ruff_cache' "${CLAUDE_SKILL_DIR}/examples/book-tracker/" "$DEST/"
 cd "$DEST"
 export BOOKTRACKER_DATA_DIR=$(mktemp -d)   # fresh state → the demo always opens pristine
+
+# 1. HEADLINE FIRST — zero install. The CLI is pure-stdlib, so it answers in
+#    seconds with no venv, no pip, no network. Lead with this; nothing can fail.
+PYTHONPATH=src python3 -m booktracker.cli top-genres
+
+# 2. PROVE IT'S REAL — only now install deps and run the suite (the credibility
+#    beat: 28 passing tests). This is the only part that needs the MCP SDK.
 python3 -m venv .venv && .venv/bin/pip install -e ".[test]" ruff
-.venv/bin/ruff check . && .venv/bin/python -m pytest -q            # expect green
-PYTHONPATH=src .venv/bin/python -m booktracker.cli top-genres      # the headline
+.venv/bin/ruff check . && .venv/bin/python -m pytest -q            # expect 28 passed
 ```
+
+Lead with the **zero-install headline** — a real tool answering in seconds, with
+nothing to install and no network to fail. Then run the install + suite as the
+"and it's real, not faked" beat. (The pure-stdlib CLI is why step 1 needs no
+setup; only the MCP server and the tool-layer tests pull in the `mcp` SDK.)
 
 **Always pin a fresh `BOOKTRACKER_DATA_DIR` (above) for a demo.** Mutable state —
 added books, `reset_library`, imports — persists in that dir (default
