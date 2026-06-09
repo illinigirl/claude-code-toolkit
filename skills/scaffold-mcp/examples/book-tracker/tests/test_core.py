@@ -2,6 +2,8 @@
 This is where the bulk of the domain logic is covered; the values are pinned to
 the bundled seed library so the deterministic math is exact, not approximate."""
 
+import pytest
+
 from booktracker import core
 
 
@@ -83,6 +85,29 @@ def test_pace_to_goal_midyear_projects(books):
 
 def test_latest_finished_year(books):
     assert core.latest_finished_year(books) == 2024
+
+
+def test_group_books_by_genre_ranks_by_size(books):
+    sections = core.group_books(books, "genre")
+    assert sections[0][0] == "Fantasy"  # biggest genre first
+    assert {label for label, _ in sections} == {
+        "Fantasy", "Science Fiction", "Mystery", "Literary", "Nonfiction"}
+
+
+def test_group_books_by_year_unfinished_last(books):
+    labels = [label for label, _ in core.group_books(books, "year")]
+    assert labels[0] == "2024"             # all seed reads finished in 2024
+    assert labels[-1] == "Not yet finished"  # the reading + to-read books
+
+
+def test_group_books_by_status_uses_display_labels(books):
+    labels = [label for label, _ in core.group_books(books, "status")]
+    assert labels == ["Currently reading", "Want to read", "Read"]
+
+
+def test_group_books_rejects_unknown_axis(books):
+    with pytest.raises(ValueError):
+        core.group_books(books, "publisher")
 
 
 def test_parse_goodreads_csv(goodreads_csv):

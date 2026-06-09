@@ -126,3 +126,25 @@ def test_export_text_is_plain(srv):
     exp = srv.export_markdown(format="text")
     assert exp["format"] == "text"
     assert "#" not in exp["content"]
+
+
+def test_export_favorites_by_genre(srv):
+    # "my 5-star books grouped by genre" — one call: select + arrange
+    exp = srv.export_markdown(group_by="genre", min_rating=5)
+    c = exp["content"]
+    assert exp["group_by"] == "genre"
+    assert "# My 5★+ books by genre" in c
+    assert "## Fantasy" in c
+    assert "The Name of the Wind" in c   # a 5★ fantasy read
+    assert "Gaudy Night" not in c        # 3★ — filtered out by min_rating
+    assert "## Mystery" not in c         # no 5★ mystery → genre absent
+
+
+def test_export_group_by_year(srv):
+    c = srv.export_markdown(group_by="year")["content"]
+    assert "## 2024" in c                # all seed reads finished in 2024
+    assert "## Not yet finished" in c    # the reading + to-read books
+
+
+def test_export_rejects_unknown_group_by(srv):
+    assert "error" in srv.export_markdown(group_by="publisher")

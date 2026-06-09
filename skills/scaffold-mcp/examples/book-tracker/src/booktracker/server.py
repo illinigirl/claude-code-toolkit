@@ -24,10 +24,12 @@ from datetime import date
 from mcp.server.fastmcp import FastMCP
 
 from . import core, store
-from .exports import render_reading_list_markdown, render_reading_list_text
+from .exports import export_title, render_grouped_markdown, render_grouped_text
 from .models import Book
 
 mcp = FastMCP("book-tracker")
+
+_GROUP_BY = ("status", "genre", "author", "year")
 
 
 # ── Ingest (persist state — the cross-session memory plain Claude lacks) ──
@@ -178,25 +180,37 @@ def pace_to_goal(year: int | None = None) -> dict:
 # ── Durable artifact (a report you keep; returned inline for remote callers) ──
 
 @mcp.tool()
-def export_markdown(path: str | None = None, format: str = "markdown") -> dict:
+def export_markdown(path: str | None = None, format: str = "markdown",
+                    group_by: str = "status", min_rating: int | None = None,
+                    genre: str | None = None, author: str | None = None,
+                    status: str | None = None) -> dict:
     """Write a reading-list report AND return it inline.
 
-    `format`: "markdown" (default) or "text" (for pasting into Notes). With no
-    `path`, writes to a known location under the data dir (not the process cwd,
-    unpredictable when a desktop client launches the server). `content` is always
-    returned, so a remote caller who can't read the server's disk still gets it."""
+    Select which books with the same filters as find_books (`min_rating`, `genre`,
+    `author`, `status`) and arrange them with `group_by` — "status" (default),
+    "genre", "author", or "year". So "my 5-star books grouped by genre" is one
+    call: group_by="genre", min_rating=5. One parameterized export, not a separate
+    tool per arrangement.
+
+    `format`: "markdown" (default) or "text". With no `path`, writes to a known
+    location under the data dir (not the process cwd, unpredictable when a desktop
+    client launches the server). `content` is always returned, so a remote caller
+    who can't read the server's disk still gets it."""
     from pathlib import Path
-    books = store.load_books()
-    title = f"My reading list — {date.today().isoformat()}"
+    if group_by not in _GROUP_BY:
+        return {"error": f"group_by must be one of {list(_GROUP_BY)}", "group_by": group_by}
+    books = core.find_books(store.load_books(), genre=genre, author=author,
+                            status=status, min_rating=min_rating)
+    title = export_title(group_by, min_rating)
     if format == "text":
-        content, ext = render_reading_list_text(books, title), "txt"
+        content, ext = render_grouped_text(books, title, group_by), "txt"
     else:
-        content, ext = render_reading_list_markdown(books, title), "md"
+        content, ext = render_grouped_markdown(books, title, group_by), "md"
     out = Path(path) if path else store.export_default_path(date.today().isoformat(), ext=ext)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(content)
     store.record_export(title, content)
-    return {"written": str(out), "format": format, "content": content}
+    return {"written": str(out), "format": format, "group_by": group_by, "content": content}
 
 
 def _resolve_transport(argv=None) -> tuple[str, str, int]:

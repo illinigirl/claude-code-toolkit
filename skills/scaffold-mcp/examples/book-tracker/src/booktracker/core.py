@@ -32,6 +32,13 @@ MONTHS = (
     "July", "August", "September", "October", "November", "December",
 )
 
+# Status display order + labels for grouped exports.
+_STATUS_DISPLAY = (
+    ("reading", "Currently reading"),
+    ("to-read", "Want to read"),
+    ("read", "Read"),
+)
+
 
 def read_books(books: list[Book]) -> list[Book]:
     """Just the finished books — the subset most stats are computed over."""
@@ -59,6 +66,47 @@ def find_books(
     if min_rating is not None:
         out = [b for b in out if b.rating is not None and b.rating >= min_rating]
     return out
+
+
+def _sorted_books(books: list[Book]) -> list[Book]:
+    return sorted(books, key=lambda b: (b.author, b.title))
+
+
+def group_books(books: list[Book], by: str = "status") -> list[tuple[str, list[Book]]]:
+    """Arrange books into (label, books) sections for an export, in display order.
+
+    `by`: 'status' (reading / to-read / read), 'genre' or 'author' (ranked by
+    size, biggest first), or 'year' (finished year, most recent first; unfinished
+    last). Pure; raises ValueError on an unknown axis. This only *arranges* —
+    selecting which books to include is the caller's job via find_books, so one
+    parameterized export covers "favorites by genre", "everything by year", etc.,
+    instead of a separate tool per arrangement.
+    """
+    if by == "status":
+        sections = []
+        for status, label in _STATUS_DISPLAY:
+            rows = _sorted_books([b for b in books if b.status == status])
+            if rows:
+                sections.append((label, rows))
+        return sections
+    if by == "year":
+        buckets: dict[str | None, list[Book]] = defaultdict(list)
+        for b in books:
+            year = b.finished[:4] if b.finished and len(b.finished) >= 4 else None
+            buckets[year].append(b)
+        sections = [(y, _sorted_books(buckets[y]))
+                    for y in sorted((y for y in buckets if y), reverse=True)]
+        if None in buckets:
+            sections.append(("Not yet finished", _sorted_books(buckets[None])))
+        return sections
+    if by in ("genre", "author"):
+        key = (lambda b: b.genre) if by == "genre" else (lambda b: b.author)
+        buckets = defaultdict(list)
+        for b in books:
+            buckets[key(b)].append(b)
+        ranked = sorted(buckets.items(), key=lambda kv: (-len(kv[1]), kv[0]))
+        return [(label, _sorted_books(rows)) for label, rows in ranked]
+    raise ValueError(f"unknown group_by: {by!r} (use status|genre|author|year)")
 
 
 def top_genres(books: list[Book]) -> list[GenreCount]:

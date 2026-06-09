@@ -17,7 +17,7 @@ import argparse
 from datetime import date
 
 from . import core, store
-from .exports import render_reading_list_markdown, render_reading_list_text
+from .exports import export_title, render_grouped_markdown, render_grouped_text
 from .models import STATUSES, Book
 
 
@@ -110,16 +110,18 @@ def cmd_reset(args):
 
 def cmd_export(args):
     from pathlib import Path
-    books = store.load_books()
-    title = f"My reading list — {date.today().isoformat()}"
+    books = core.find_books(store.load_books(), genre=args.genre, author=args.author,
+                            status=args.status, min_rating=args.min_rating)
+    title = export_title(args.group_by, args.min_rating)
     if args.format == "text":
-        content, ext = render_reading_list_text(books, title), "txt"
+        content, ext = render_grouped_text(books, title, args.group_by), "txt"
     else:
-        content, ext = render_reading_list_markdown(books, title), "md"
+        content, ext = render_grouped_markdown(books, title, args.group_by), "md"
     out = Path(args.path) if args.path else store.export_default_path(date.today().isoformat(), ext=ext)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(content)
-    print(f"Wrote {out}")
+    print(f"Wrote {out}\n")
+    print(content)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -166,6 +168,12 @@ def build_parser() -> argparse.ArgumentParser:
     pe = sub.add_parser("export", help="write a reading-list report")
     pe.add_argument("path", nargs="?")
     pe.add_argument("--format", choices=["markdown", "text"], default="markdown")
+    pe.add_argument("--group-by", dest="group_by",
+                    choices=["status", "genre", "author", "year"], default="status")
+    pe.add_argument("--min-rating", type=int, dest="min_rating")
+    pe.add_argument("--genre")
+    pe.add_argument("--author")
+    pe.add_argument("--status", choices=list(STATUSES))
     pe.set_defaults(func=cmd_export)
     return p
 
