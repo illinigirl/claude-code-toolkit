@@ -15,6 +15,64 @@ The deep rationale for the pattern (the four-part "does this need an MCP?" test,
 why one I/O module, why dual transport, remote-safe I/O) lives in
 [reference.md](reference.md) — read it before adapting domain logic.
 
+## Choose a path
+
+Ask first which the user wants:
+
+> **"Do you have an MCP idea to talk through and build, or would you like a
+> working demo MCP to drive right now?"**
+
+- **An idea to build** → the **build path** (steps 1–4 below): gather a
+  name/domain, generate the generic skeleton, prove it green, then adapt it to the
+  real domain.
+- **A working demo** → the **[demo path](#demo-path)**: stand up the bundled
+  `book-tracker` worked example — a real reading-log MCP that clones already
+  populated — so they can call a tool and see real output in under a minute.
+
+## Demo path
+
+A complete, tested reading-log MCP ships with this skill at
+`${CLAUDE_SKILL_DIR}/examples/book-tracker`. It clones populated with ~15 sample
+books, so every tool returns real output immediately. Copy it out (without the
+local virtualenv/caches), prove it green, and drive the headline tool:
+
+```bash
+DEST=<dest>/book-tracker      # default: the current working directory
+rsync -a --exclude '.venv' --exclude '__pycache__' --exclude '.pytest_cache' \
+  --exclude '.ruff_cache' "${CLAUDE_SKILL_DIR}/examples/book-tracker/" "$DEST/"
+cd "$DEST"
+python3 -m venv .venv && .venv/bin/pip install -e ".[test]" ruff
+.venv/bin/ruff check . && .venv/bin/python -m pytest -q            # expect green
+PYTHONPATH=src .venv/bin/python -m booktracker.cli top-genres      # the headline
+```
+
+`top-genres` prints one line of real insight ("You read Fantasy most"). Other
+beats: `by-month` (a seasonality bar chart), `pace` (goal progress), `summary`.
+
+Then narrate **why it's shaped this way** — that's the point of the demo, not the
+output itself:
+
+- **The four-part "does this need an MCP?" test** (persist / artifact / private
+  data / exact compute) — every tool maps to one; the example's `CLAUDE.md` is the
+  table. The honest move is naming a tool you *didn't* add and why.
+- **The model is the importer.** `add_book` (one), `add_books` (a photographed
+  shelf — Claude's *vision* extracts the rows), `import_goodreads_csv` (a whole
+  back-catalog). All funnel into one dedupe-and-persist sink; the server never
+  touches the image. Only bulk CSV uses a deterministic parser.
+- **Pure core + thin adapters** — the CLI and the MCP server are two adapters over
+  the same tested pure functions, which is *why* this runs without an MCP client.
+
+To adopt it for real (or reset between demos): `reset_library` hides the samples
+and clears added books; `use_sample_library on` brings them back. For the live
+"drive it from Claude" version, use the README's Claude Desktop / custom-connector
+setup — the photo-import beat is a live Claude moment (vision runs in the model, so
+it isn't part of the CLI path).
+
+---
+
+The steps below are the **build path** — generating a new server for the user's
+own idea.
+
 ## 1. Gather the parameters
 
 Ask only for what's missing; infer sensible defaults and confirm them.
@@ -42,10 +100,16 @@ python3 "${CLAUDE_SKILL_DIR}/scaffold.py" \
 Optional flags: `--package`, `--domain-plural` (if `domain + "s"` reads wrong),
 `--description`, `--force` (write into a non-empty dir).
 
-## 3. Prove it green
+## 3. Prove it green — hand off to verify-mcp
 
-From the generated project dir, create a venv, install, and run the suite +
-linter. Report the result to the user; do not claim success without running these.
+Generating shouldn't end with a pile of files; it should end with a verdict. So
+**run the `verify-mcp` skill on the new project** as the final step — it sets up
+the venv, runs ruff + pytest, imports the server to confirm the tools register,
+inventories the tool surface (count + missing docstrings), and prints a GREEN/RED
+health report. This is the auto-verify: scaffold → report, in one flow.
+
+If `verify-mcp` isn't available, run the same checks inline and report the result;
+do not claim success without running them:
 
 ```bash
 cd <dest>/<name>

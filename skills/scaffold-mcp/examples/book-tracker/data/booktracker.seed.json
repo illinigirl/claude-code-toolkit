@@ -1,0 +1,23 @@
+{
+  "_comment": "Bundled starter library so the repo clones-and-runs already populated — every compute tool returns something legible cold. Public bibliographic facts only (titles, authors, page counts), no private data. `goals` feeds pace_to_goal. Your own added books + status changes live in a gitignored state.json, never here.",
+  "books": [
+    {"id": "the-hobbit", "title": "The Hobbit", "author": "J.R.R. Tolkien", "genre": "Fantasy", "status": "read", "rating": 5, "pages": 310, "finished": "2024-01-12"},
+    {"id": "the-left-hand-of-darkness", "title": "The Left Hand of Darkness", "author": "Ursula K. Le Guin", "genre": "Science Fiction", "status": "read", "rating": 5, "pages": 304, "finished": "2024-01-28"},
+    {"id": "the-hound-of-the-baskervilles", "title": "The Hound of the Baskervilles", "author": "Arthur Conan Doyle", "genre": "Mystery", "status": "read", "rating": 4, "pages": 256, "finished": "2024-01-22"},
+    {"id": "the-fellowship-of-the-ring", "title": "The Fellowship of the Ring", "author": "J.R.R. Tolkien", "genre": "Fantasy", "status": "read", "rating": 5, "pages": 423, "finished": "2024-02-08"},
+    {"id": "a-wizard-of-earthsea", "title": "A Wizard of Earthsea", "author": "Ursula K. Le Guin", "genre": "Fantasy", "status": "read", "rating": 4, "pages": 183, "finished": "2024-03-20"},
+    {"id": "dune", "title": "Dune", "author": "Frank Herbert", "genre": "Science Fiction", "status": "read", "rating": 4, "pages": 412, "finished": "2024-04-15"},
+    {"id": "gaudy-night", "title": "Gaudy Night", "author": "Dorothy L. Sayers", "genre": "Mystery", "status": "read", "rating": 3, "pages": 501, "finished": "2024-05-30"},
+    {"id": "the-remains-of-the-day", "title": "The Remains of the Day", "author": "Kazuo Ishiguro", "genre": "Literary", "status": "read", "rating": 5, "pages": 258, "finished": "2024-06-11"},
+    {"id": "project-hail-mary", "title": "Project Hail Mary", "author": "Andy Weir", "genre": "Science Fiction", "status": "read", "rating": 4, "pages": 476, "finished": "2024-07-02"},
+    {"id": "educated", "title": "Educated", "author": "Tara Westover", "genre": "Nonfiction", "status": "read", "rating": 4, "pages": 334, "finished": "2024-08-05"},
+    {"id": "the-name-of-the-wind", "title": "The Name of the Wind", "author": "Patrick Rothfuss", "genre": "Fantasy", "status": "read", "rating": 5, "pages": 662, "finished": "2024-09-14"},
+    {"id": "the-two-towers", "title": "The Two Towers", "author": "J.R.R. Tolkien", "genre": "Fantasy", "status": "reading", "rating": null, "pages": 352, "finished": null},
+    {"id": "the-way-of-kings", "title": "The Way of Kings", "author": "Brandon Sanderson", "genre": "Fantasy", "status": "to-read", "rating": null, "pages": 1007, "finished": null},
+    {"id": "klara-and-the-sun", "title": "Klara and the Sun", "author": "Kazuo Ishiguro", "genre": "Literary", "status": "to-read", "rating": null, "pages": 303, "finished": null},
+    {"id": "a-brief-history-of-time", "title": "A Brief History of Time", "author": "Stephen Hawking", "genre": "Nonfiction", "status": "to-read", "rating": null, "pages": 212, "finished": null}
+  ],
+  "goals": {
+    "2024": 12
+  }
+}

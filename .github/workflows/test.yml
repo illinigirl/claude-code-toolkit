@@ -22,6 +22,28 @@ jobs:
           ruff check .
           python -m pytest -q
 
+  book-tracker-example:
+    runs-on: ubuntu-latest
+    # The worked example the scaffold-mcp demo path ships. Prove it installs,
+    # lints, tests, and that the headline demo tool call actually produces output.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install + lint + test the worked example
+        working-directory: skills/scaffold-mcp/examples/book-tracker
+        run: |
+          pip install -e ".[test]" ruff
+          ruff check .
+          python -m pytest -q
+      - name: Drive the demo (the headline tool call must produce output)
+        working-directory: skills/scaffold-mcp/examples/book-tracker
+        run: |
+          out=$(PYTHONPATH=src python -m booktracker.cli top-genres)
+          echo "$out"
+          echo "$out" | grep -q "Fantasy"
+
   failure-modes:
     runs-on: ubuntu-latest
     steps:

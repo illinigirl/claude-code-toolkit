@@ -1,0 +1,4 @@
+# The MCP server needs the MCP SDK (FastMCP lives in `mcp`). The pure core + CLI
+# run on the standard library alone — no install needed to use the CLI or to run
+# the pure-core test subset.
+mcp>=1.0
