@@ -41,10 +41,18 @@ DEST=<dest>/book-tracker      # default: the current working directory
 rsync -a --exclude '.venv' --exclude '__pycache__' --exclude '.pytest_cache' \
   --exclude '.ruff_cache' "${CLAUDE_SKILL_DIR}/examples/book-tracker/" "$DEST/"
 cd "$DEST"
+export BOOKTRACKER_DATA_DIR=$(mktemp -d)   # fresh state → the demo always opens pristine
 python3 -m venv .venv && .venv/bin/pip install -e ".[test]" ruff
 .venv/bin/ruff check . && .venv/bin/python -m pytest -q            # expect green
 PYTHONPATH=src .venv/bin/python -m booktracker.cli top-genres      # the headline
 ```
+
+**Always pin a fresh `BOOKTRACKER_DATA_DIR` (above) for a demo.** Mutable state —
+added books, `reset_library`, imports — persists in that dir (default
+`~/.book-tracker`) *across runs*, so a prior rehearsal can silently poison a fresh
+demo (e.g. `reset_library` leaves `top-genres` empty). The throwaway dir isolates
+each run; to reset a default-dir install instead, `rm -rf ~/.book-tracker` or run
+`booktracker.cli samples on`.
 
 `top-genres` prints one line of real insight ("You read Fantasy most"). Other
 beats: `by-month` (a seasonality bar chart), `pace` (goal progress), `summary`.
