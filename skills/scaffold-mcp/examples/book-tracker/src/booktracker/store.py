@@ -10,10 +10,13 @@ Two locations, deliberately separate:
   ~/.book-tracker) and is gitignored — a reviewer's experiments never dirty the
   repo, and real data never lands in a public commit.
 
-The seed is immutable, so a status change to a *seed* book can't edit the seed
-file; instead `mark_status` records an override in state, and `load_books`
-overlays it. Keeping all I/O in this one module is what lets every other module
-stay pure and unit-testable without a runtime.
+The seed is immutable, so an edit to a *seed* book can't write the seed file.
+Instead we use **copy-on-write**: the first edit of a seed book copies the whole
+record into mutable state under the same id, and `load_books` lets your copy win.
+Deleting a seed book records a tombstone (`hidden_ids`) the loader filters out.
+One overlay mechanism for every mutation — `mark_status` is just `update_book`
+changing the status field. Keeping all I/O in this one module is what lets every
+other module stay pure and unit-testable without a runtime.
 """
 
 from __future__ import annotations
@@ -51,13 +54,21 @@ def _load_seed() -> dict:
 
 # ── State (mutable) ──────────────────────────────────────────────────
 
+def _empty_state() -> dict:
+    return {"books": [], "hidden_ids": [], "goals": {}, "exports": [], "settings": {}}
+
+
 def load_state() -> dict:
     p = state_path()
     if not p.exists():
-        return {"books": [], "status_overrides": {}, "goals": {}, "exports": [], "settings": {}}
+        return _empty_state()
     state = json.loads(p.read_text())
+    # Legacy state (pre copy-on-write) carried per-book status_overrides; it's
+    # ignored now — the demo always runs against a fresh data dir, so there are
+    # no real upgrades to migrate. Dropped silently rather than crash on it.
+    state.pop("status_overrides", None)
     state.setdefault("books", [])
-    state.setdefault("status_overrides", {})
+    state.setdefault("hidden_ids", [])
     state.setdefault("goals", {})
     state.setdefault("exports", [])
     state.setdefault("settings", {})
@@ -76,21 +87,22 @@ def _show_seed(state: dict) -> bool:
 
 
 def load_books() -> list[Book]:
-    """Your books, with any `mark_status` overrides applied — the single read path
-    every tool grounds itself in. Includes the bundled sample library unless you've
-    turned it off (set_show_seed / reset_library)."""
+    """Your books — the single read path every tool grounds itself in. Applies the
+    copy-on-write overlay: where you've edited a seed book, your state copy wins;
+    deleted books (tombstoned in `hidden_ids`) are filtered out. Includes the
+    bundled sample library unless you've turned it off (set_show_seed / reset)."""
     state = load_state()
+    seed_raw = _load_seed().get("books", [])
+    seed_ids = {b["id"] for b in seed_raw}
+    state_by_id = {b["id"]: b for b in state.get("books", [])}
+    hidden = set(state.get("hidden_ids", []))
     books: list[Book] = []
     if _show_seed(state):
-        books += [Book.from_dict(b) for b in _load_seed().get("books", [])]
-    books += [Book.from_dict(b) for b in state.get("books", [])]
-    overrides = state.get("status_overrides", {})
-    if overrides:
-        books = [
-            dataclasses.replace(b, status=overrides[b.id]) if b.id in overrides else b
-            for b in books
-        ]
-    return books
+        # Seed books in seed order, but your edited copy wins where one exists.
+        books += [Book.from_dict(state_by_id.get(b["id"], b)) for b in seed_raw]
+    # Books you added that aren't edits of a seed book (those are folded in above).
+    books += [Book.from_dict(b) for b in state.get("books", []) if b["id"] not in seed_ids]
+    return [b for b in books if b.id not in hidden]
 
 
 def _slug(text: str) -> str:
@@ -110,9 +122,17 @@ def existing_keys() -> set[str]:
     return {_dedupe_key(b.title, b.author) for b in load_books()}
 
 
+def taken_ids() -> set[str]:
+    """Ids unavailable for a new book: visible books AND tombstoned (deleted) seed
+    ids. Including the tombstones means re-adding a deleted title gets a fresh id
+    instead of colliding with the hidden one — which the loader would otherwise
+    filter straight back out."""
+    return existing_ids() | set(load_state().get("hidden_ids", []))
+
+
 def unique_id(title: str, taken: set[str] | None = None) -> str:
-    """A slug not already taken by a seed or added book."""
-    taken = taken if taken is not None else existing_ids()
+    """A slug not already taken by a seed, added, or deleted book."""
+    taken = taken if taken is not None else taken_ids()
     base = _slug(title)
     candidate, n = base, 2
     while candidate in taken:
@@ -134,7 +154,7 @@ def add_books(rows: list[dict]) -> dict:
     photographed shelf (Claude's vision extracts the rows), or a pasted Goodreads
     export. Returns the ids added and the titles skipped as duplicates."""
     state = load_state()
-    taken_ids = existing_ids()
+    taken = taken_ids()
     taken_keys = existing_keys()
     added: list[str] = []
     skipped: list[str] = []
@@ -147,8 +167,8 @@ def add_books(rows: list[dict]) -> dict:
         if key in taken_keys:
             skipped.append(title)
             continue
-        rid = unique_id(title, taken_ids)
-        taken_ids.add(rid)
+        rid = unique_id(title, taken)
+        taken.add(rid)
         taken_keys.add(key)
         book = Book.from_dict({**row, "id": rid, "title": title, "author": author})
         state["books"].append(book.to_dict())
@@ -157,13 +177,53 @@ def add_books(rows: list[dict]) -> dict:
     return {"added": added, "skipped_duplicates": skipped}
 
 
+# Every field of a Book except its id can be edited.
+_EDITABLE = ("title", "author", "genre", "status", "rating", "pages", "finished")
+
+
+def update_book(book_id: str, changes: dict) -> bool:
+    """Edit a book (seed or added) via copy-on-write. Only the keys present in
+    `changes` with a non-None value are applied — the rest stay as they are — so
+    callers pass just what's changing. The first edit of a seed book writes a full
+    copy into mutable state under the same id; thereafter your copy wins. Returns
+    False if the id is unknown (incl. already-deleted) or `status` is invalid."""
+    current = {b.id: b for b in load_books()}.get(book_id)
+    if current is None:
+        return False
+    clean = {k: v for k, v in changes.items() if k in _EDITABLE and v is not None}
+    if "status" in clean and clean["status"] not in STATUSES:
+        return False
+    if "rating" in clean:
+        clean["rating"] = int(clean["rating"])
+    if "pages" in clean:
+        clean["pages"] = int(clean["pages"])
+    updated = dataclasses.replace(current, **clean)
+    state = load_state()
+    # Replace any existing state record for this id, then write the new full copy.
+    state["books"] = [b for b in state["books"] if b["id"] != book_id]
+    state["books"].append(updated.to_dict())
+    save_state(state)
+    return True
+
+
 def mark_status(book_id: str, status: str) -> bool:
-    """Record a status change for a book (seed or added) as a state overlay.
-    Returns False if the id isn't known or the status is invalid."""
-    if status not in STATUSES or book_id not in existing_ids():
+    """Move a book between to-read / reading / read. A thin shortcut over
+    update_book — the common 'I finished it' edit. False on unknown id / status."""
+    if status not in STATUSES:
+        return False
+    return update_book(book_id, {"status": status})
+
+
+def delete_book(book_id: str) -> bool:
+    """Remove a book. A book you added is dropped from state; a seed book is hidden
+    via a tombstone (reversible by adding it again). Returns False if unknown."""
+    if book_id not in existing_ids():
         return False
     state = load_state()
-    state["status_overrides"][book_id] = status
+    seed_ids = {b["id"] for b in _load_seed().get("books", [])}
+    state["books"] = [b for b in state["books"] if b["id"] != book_id]
+    if book_id in seed_ids:
+        state["hidden_ids"] = sorted(set(state.get("hidden_ids", [])) | {book_id})
     save_state(state)
     return True
 
@@ -201,15 +261,15 @@ def set_show_seed(enabled: bool) -> None:
 
 def reset_library() -> dict:
     """Empty your library for real use: hide the bundled samples AND clear
-    everything you've added (books, status changes, goals, exports). Reversible
-    for the samples via set_show_seed(True). Returns what was cleared."""
+    everything you've added or edited (book records, deletions, goals, exports).
+    Reversible for the samples via set_show_seed(True). Returns what was cleared."""
     state = load_state()
     cleared = {
         "books": len(state.get("books", [])),
-        "status_changes": len(state.get("status_overrides", {})),
+        "deletions": len(state.get("hidden_ids", [])),
         "goals": len(state.get("goals", {})),
     }
-    save_state({"books": [], "status_overrides": {}, "goals": {}, "exports": [],
+    save_state({"books": [], "hidden_ids": [], "goals": {}, "exports": [],
                 "settings": {"show_seed": False}})
     return cleared
 

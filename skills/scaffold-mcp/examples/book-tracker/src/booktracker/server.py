@@ -70,10 +70,41 @@ def import_goodreads_csv(csv_text: str) -> dict:
 
 @mcp.tool()
 def mark_status(book_id: str, status: str) -> dict:
-    """Move a book between to-read / reading / read (e.g. you finished it)."""
+    """Move a book between to-read / reading / read (e.g. you finished it). A
+    shortcut for the common case — update_book changes any field, this just status."""
     ok = store.mark_status(book_id, status)
     return {"updated": ok, "book_id": book_id, "status": status} if ok else {
         "updated": False, "error": "unknown book_id or invalid status", "book_id": book_id}
+
+
+@mcp.tool()
+def update_book(book_id: str, title: str | None = None, author: str | None = None,
+                genre: str | None = None, status: str | None = None,
+                rating: int | None = None, pages: int | None = None,
+                finished: str | None = None) -> dict:
+    """Edit a book already in your library — fix a genre Claude guessed, correct a
+    title or author, set a rating, change page count. Only the fields you pass
+    change; omit the rest and they stay as they are. Works on the sample books too:
+    the first edit makes your own copy of that book, and your version wins after.
+    `status` is to-read / reading / read; `rating` is 1–5. Find the book_id with
+    find_books first. Returns whether it updated."""
+    changes = {"title": title, "author": author, "genre": genre, "status": status,
+               "rating": rating, "pages": pages, "finished": finished}
+    ok = store.update_book(book_id, changes)
+    return {"updated": ok, "book_id": book_id} if ok else {
+        "updated": False, "error": "unknown book_id or invalid field value",
+        "book_id": book_id}
+
+
+@mcp.tool()
+def delete_book(book_id: str) -> dict:
+    """Remove a single book from your library. A book you added is dropped; a sample
+    book is hidden (reversible by adding it again). Find the book_id with find_books
+    first. To clear the whole library at once, use reset_library instead. Returns
+    whether it deleted."""
+    ok = store.delete_book(book_id)
+    return {"deleted": ok, "book_id": book_id} if ok else {
+        "deleted": False, "error": "unknown book_id", "book_id": book_id}
 
 
 @mcp.tool()

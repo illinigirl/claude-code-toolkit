@@ -7,6 +7,8 @@ up an MCP client. Same functions the MCP tools call.
     python -m booktracker.cli summary
     python -m booktracker.cli list [--genre X] [--author Y] [--status read] [--min-rating N]
     python -m booktracker.cli add "<title>" --author "<author>" [--genre G] [--status S] [--rating N]
+    python -m booktracker.cli edit <book_id> [--genre G] [--rating N] [--status S] ...
+    python -m booktracker.cli delete <book_id>
     python -m booktracker.cli import-goodreads <file.csv>
     python -m booktracker.cli export [path] [--format markdown|text]
 """
@@ -101,10 +103,23 @@ def cmd_samples(args):
     print(f"Sample library {args.state} — {n} books in your library.")
 
 
+def cmd_edit(args):
+    changes = {"title": args.title, "author": args.author, "genre": args.genre,
+               "status": args.status, "rating": args.rating, "pages": args.pages,
+               "finished": args.finished}
+    ok = store.update_book(args.book_id, changes)
+    print(f"Updated {args.book_id}" if ok else f"No such book: {args.book_id}")
+
+
+def cmd_delete(args):
+    ok = store.delete_book(args.book_id)
+    print(f"Deleted {args.book_id}" if ok else f"No such book: {args.book_id}")
+
+
 def cmd_reset(args):
     cleared = store.reset_library()
-    print(f"Reset: cleared {cleared['books']} added books, "
-          f"{cleared['status_changes']} status changes, {cleared['goals']} goals; "
+    print(f"Reset: cleared {cleared['books']} book records, "
+          f"{cleared['deletions']} deletions, {cleared['goals']} goals; "
           "sample library hidden. Your library is empty — add or import to start.")
 
 
@@ -152,6 +167,21 @@ def build_parser() -> argparse.ArgumentParser:
     pa.add_argument("--pages", type=int, default=0)
     pa.add_argument("--finished")
     pa.set_defaults(func=cmd_add)
+
+    ped = sub.add_parser("edit", help="change fields of a book already in your library")
+    ped.add_argument("book_id")
+    ped.add_argument("--title")
+    ped.add_argument("--author")
+    ped.add_argument("--genre")
+    ped.add_argument("--status", choices=list(STATUSES))
+    ped.add_argument("--rating", type=int)
+    ped.add_argument("--pages", type=int)
+    ped.add_argument("--finished")
+    ped.set_defaults(func=cmd_edit)
+
+    pdl = sub.add_parser("delete", help="remove a book (added book dropped; sample hidden)")
+    pdl.add_argument("book_id")
+    pdl.set_defaults(func=cmd_delete)
 
     pi = sub.add_parser("import-goodreads", help="bulk import a Goodreads export CSV")
     pi.add_argument("csv_file")

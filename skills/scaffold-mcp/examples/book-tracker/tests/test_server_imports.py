@@ -12,7 +12,8 @@ def test_server_exposes_expected_tools():
     import booktracker.server as server
 
     expected = {
-        "add_book", "add_books", "import_goodreads_csv", "mark_status", "set_goal",
+        "add_book", "add_books", "import_goodreads_csv", "mark_status",
+        "update_book", "delete_book", "set_goal",
         "use_sample_library", "reset_library",
         "find_books", "top_genres", "rating_by_genre", "top_authors",
         "books_by_month", "reading_summary", "pace_to_goal", "export_markdown",

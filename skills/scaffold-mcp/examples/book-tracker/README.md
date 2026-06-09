@@ -62,11 +62,16 @@ language — Claude picks the right tool and narrates the result:
 - *"Here's my Goodreads export — import it."* (paste the CSV)
 - *"Add this one"* — with a photo of the cover (Claude's vision reads title + author)
 
+**Fix or remove**
+- *"That's not History — Babel is Fantasy."* (Claude guessed the genre; correct it)
+- *"Bump Dune to five stars."*
+- *"Drop The Silmarillion from my list."*
+
 **Make something / start fresh**
 - *"Make me a shareable reading list."*
 - *"Clear the samples — I want to start my own library."*
 
-## The tools (15)
+## The tools (17)
 
 **Ingest — a ladder by scale, all funneling into one dedupe-and-persist sink:**
 
@@ -81,7 +86,9 @@ language — Claude picks the right tool and narrates the result:
 > photograph a shelf, or paste a CSV — all three are "the model parses the messy
 > input; the tool persists it exactly." That division of labor is the point.
 
-**Persist / update:** `mark_status` (to-read → reading → read), `set_goal`.
+**Persist / update:** `mark_status` (to-read → reading → read), `update_book`
+(fix any field — the genre Claude guessed, a rating, a title), `delete_book`
+(drop one book), `set_goal`. `mark_status` is just the common case of `update_book`.
 
 **Compute (exact — the model narrates, never calculates):** `top_genres`,
 `rating_by_genre` (carries sample size — a 5.0 over one book isn't a 4.75 over
@@ -130,10 +137,12 @@ src/booktracker/
 data/booktracker.seed.json   bundled starter library (clones-and-runs)
 ```
 
-The seed ships in the repo; your added books, status changes, goals, and reports
-live in a gitignored `state.json` under `~/.book-tracker/` — real data never
-lands in a commit. The seed is immutable, so finishing a *seed* book records a
-status overlay in state rather than editing the seed.
+The seed ships in the repo; your added books, edits, deletions, goals, and reports
+live in a gitignored `state.json` under `~/.book-tracker/` — real data never lands
+in a commit. The seed is immutable, so editing a *seed* book uses **copy-on-write**:
+the first edit copies that record into your state and your copy wins thereafter;
+deleting one records a tombstone the loader filters out. One overlay mechanism for
+every mutation — `mark_status` is just `update_book` changing the status field.
 
 ## Use it from Claude
 

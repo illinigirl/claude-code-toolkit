@@ -120,8 +120,11 @@ repo. Point it at a temp dir to experiment without touching real data:
   an argument rather than reading today's date, so it's deterministic and
   testable; the adapter supplies the real month.
 - **Bundled seed vs. mutable state, kept apart.** The seed ships read-only so the
-  repo runs cold; your books/goals/reports go in a gitignored `state.json`.
-  Finishing a *seed* book records a status overlay, since the seed can't be edited.
+  repo runs cold; your books/goals/reports go in a gitignored `state.json`. The
+  seed can't be edited, so a change to a *seed* book uses copy-on-write — the first
+  edit copies it into state and your copy wins; a delete records a tombstone the
+  loader filters. One mechanism for every mutation: `mark_status` is `update_book`
+  changing one field, not a parallel overlay.
 - **Server-side I/O degrades gracefully for remote callers.** `export_markdown`
   returns the rendered content inline (not just a path) and defaults to a known
   data-dir location, not the process cwd. The importer takes pasted CSV *text*,
@@ -142,9 +145,15 @@ assumption down as an expiring contract ("valid while a library fits in memory")
 
 ## Good first extensions
 
-1. **`rate_book`** — change a rating after the fact (mirror `mark_status`).
-2. **`remove_book`** — delete from state.
-3. **A StoryGraph CSV importer** — same shape as the Goodreads one, different
-   columns.
-4. **`recommend_next`** — pick from your to-read pile in your top-read genre
-   (a deterministic filter, not a search).
+1. **A StoryGraph CSV importer** — same shape as the Goodreads one, different
+   columns. The model still does the messy parsing; the parser only handles the
+   one well-defined format.
+2. **`recommend_next`** — pick from your to-read pile in your top-read genre
+   (a deterministic filter over your data, not a search).
+3. **`series_progress`** — group a series and report what's read vs. left. Watch
+   the trap: this is a *new* shape, not another `find_books` filter.
+
+> Note: editing and deleting a book are already built (`update_book` /
+> `delete_book`). They're worth studying before extending: `update_book` is the
+> general mutation and `mark_status` is a thin shortcut over it — when you add a
+> write tool, ask whether it's genuinely new or a special case of one you have.

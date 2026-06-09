@@ -63,6 +63,54 @@ def test_mark_status_rejects_unknown(srv):
     assert srv.mark_status("not-a-book", "read")["updated"] is False
 
 
+def test_update_book_fixes_a_seed_genre(srv):
+    # copy-on-write: editing a sample book's genre takes, and the seed file is
+    # never touched (the change lives only in your state dir). Dune ships as
+    # "Science Fiction" (3 of them); reclassifying it moves the buckets.
+    assert srv.find_books(genre="Science Fiction")["count"] == 3
+    assert srv.update_book("dune", genre="Space Opera")["updated"] is True
+    dune = srv.find_books(author="Herbert")["books"][0]
+    assert dune["genre"] == "Space Opera"
+    # the edit moved it between buckets, didn't duplicate it
+    assert srv.find_books(genre="Space Opera")["count"] == 1
+    assert srv.find_books(genre="Science Fiction")["count"] == 2
+
+
+def test_update_book_partial_leaves_other_fields(srv):
+    # Dune ships rated 4; bump to 5 without disturbing title/genre/status.
+    before = srv.find_books(author="Herbert")["books"][0]
+    assert before["rating"] == 4
+    assert srv.update_book("dune", rating=5)["updated"] is True
+    after = srv.find_books(author="Herbert")["books"][0]
+    assert after["rating"] == 5
+    assert after["title"] == before["title"]
+    assert after["genre"] == before["genre"]
+    assert after["status"] == before["status"]
+
+
+def test_update_book_rejects_unknown_and_bad_status(srv):
+    assert srv.update_book("not-a-book", genre="X")["updated"] is False
+    assert srv.update_book("dune", status="abandoned")["updated"] is False
+
+
+def test_delete_added_book_is_dropped(srv):
+    rid = srv.add_book(title="Babel", author="R.F. Kuang", genre="Fantasy")["book_id"]
+    assert srv.find_books(author="Kuang")["count"] == 1
+    assert srv.delete_book(rid)["deleted"] is True
+    assert srv.find_books(author="Kuang")["count"] == 0
+    assert srv.delete_book(rid)["deleted"] is False  # already gone
+
+
+def test_delete_seed_book_tombstones(srv):
+    assert srv.reading_summary()["total"] == 15
+    assert srv.delete_book("dune")["deleted"] is True
+    assert srv.reading_summary()["total"] == 14
+    assert srv.find_books(author="Herbert")["count"] == 0
+    # tombstone is reversible by re-adding the title
+    srv.add_book(title="Dune", author="Frank Herbert", genre="Science Fiction")
+    assert srv.find_books(author="Herbert")["count"] == 1
+
+
 def test_add_books_dedupes(srv):
     rows = [
         {"title": "Piranesi", "author": "Susanna Clarke", "genre": "Fantasy"},
