@@ -9,8 +9,8 @@ jobs:
   scaffold-and-verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Scaffold a project
@@ -27,8 +27,8 @@ jobs:
     # The worked example the scaffold-mcp demo path ships. Prove it installs,
     # lints, tests, and that the headline demo tool call actually produces output.
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Install + lint + test the worked example
@@ -47,8 +47,8 @@ jobs:
   failure-modes:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Hook regression test
