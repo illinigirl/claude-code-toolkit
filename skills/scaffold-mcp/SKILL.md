@@ -193,6 +193,13 @@ add or rename a tool, apply the four-part test in [reference.md](reference.md):
 a tool earns its place only if it persists state, causes a side effect / durable
 artifact, accesses private/live data, or computes something exact.
 
+**After adapting the domain, re-run `verify-mcp`** (or at least `ruff check .` +
+`pytest`). Verification isn't a one-time gate at generation — the green skeleton
+only proves the *wiring*. Lint is intent-agnostic, so it always applies and
+catches drift (unused imports, ordering) introduced while building the domain;
+the toy tests, by contrast, should be *replaced* with real ones for the new
+domain. Re-running verify after the real logic lands is the check that matters.
+
 ## Notes
 
 - The generator is idempotent over its inputs; re-running with the same args
