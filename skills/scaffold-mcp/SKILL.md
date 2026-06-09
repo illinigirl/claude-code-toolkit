@@ -118,6 +118,29 @@ Ask only for what's missing; infer sensible defaults and confirm them.
 - **author** — for `pyproject.toml` / `LICENSE`. Default `Your Name`; use the
   git user name if you can read it.
 
+## 1b. Check the reach — flag remote/mobile early
+
+Before generating, reason from the described use case about **where it will run**,
+and surface it — don't wait for a form. This is the cheapest place to catch a gap
+that's expensive to notice late.
+
+- If the tool would naturally be used **away from the user's computer or on a
+  phone** (notes recalled at a restaurant, anything used out in the world), say so
+  plainly: a local stdio server only runs as a subprocess of the desktop client,
+  so **it won't reach them there.** Call it out as a gap to close before the tool
+  is useful — not something the scaffold solves for them.
+- The generated server already supports remote transport (`--http` →
+  streamable-HTTP custom connector), so the *code* is ready. What remote use adds
+  is **deployment**: a host the client can reach, **persistent state that doesn't
+  live in `~/.<name>`** (a host or phone won't have that file), and **auth
+  appropriate to the host** — network-level (a private network or VPN, where the
+  network is the boundary and app-level auth may be unneeded) or app-level (OAuth /
+  bearer for a public endpoint). Name these as the work remaining; don't template a
+  specific host — a self-hosted box, a PaaS, and serverless differ too much to
+  guess, and the right auth depends on which.
+
+Infer and confirm; if it's clearly local-only (a personal desktop utility), skip it.
+
 ## 2. Generate
 
 Run the bundled script (stdlib only — no install needed):
