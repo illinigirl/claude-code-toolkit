@@ -42,6 +42,30 @@ The model does the *creative / conversational* part — choosing what to say,
 parsing what you photographed or typed; the server supplies the memory, the
 artifact, the private data, and the exact arithmetic.
 
+## Try asking it
+
+Once it's connected to Claude, these are the kinds of things you can ask in plain
+language — Claude picks the right tool and narrates the result:
+
+**Insights**
+- *"What genres do I read most?"*
+- *"Which genres do I rate the highest?"*
+- *"What months do I read the most?"*
+- *"Am I on pace for my reading goal this year?"*
+
+**Find things**
+- *"Show me everything I've read by Ursula K. Le Guin."*
+- *"What's in my to-read pile?"*
+
+**Add or import**
+- *"I just finished Babel by R.F. Kuang — five stars."*
+- *"Here's my Goodreads export — import it."* (paste the CSV)
+- *"Add this one"* — with a photo of the cover (Claude's vision reads title + author)
+
+**Make something / start fresh**
+- *"Make me a shareable reading list."*
+- *"Clear the samples — I want to start my own library."*
+
 ## The tools (15)
 
 **Ingest — a ladder by scale, all funneling into one dedupe-and-persist sink:**

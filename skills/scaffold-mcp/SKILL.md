@@ -68,6 +68,17 @@ each run; to reset a default-dir install instead, `rm -rf ~/.book-tracker` or ru
 `top-genres` prints one line of real insight ("You read Fantasy most"). Other
 beats: `by-month` (a seasonality bar chart), `pace` (goal progress), `summary`.
 
+Then **offer the user things to ask** — a demo should hand them a menu in plain
+language, not a list of tool names. Surface a few of these (the full set is in the
+example's README "Try asking it"), and run whichever they pick:
+
+- *"What genres do I read most?"* · *"Which do I rate highest?"* · *"What months do
+  I read most?"* · *"Am I on pace for my reading goal?"*
+- *"Show me everything I've read by Le Guin."* · *"What's in my to-read pile?"*
+- *"I just finished Babel by R.F. Kuang — five stars."* · *"Here's my Goodreads
+  export — import it."* · *"Add this one"* + a photo of the cover.
+- *"Make me a shareable reading list."* · *"Clear the samples — start my own library."*
+
 Then narrate **why it's shaped this way** — that's the point of the demo, not the
 output itself:
 
