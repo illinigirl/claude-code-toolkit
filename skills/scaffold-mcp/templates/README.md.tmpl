@@ -62,6 +62,21 @@ The bundled seed ships in the repo; your mutable state (added records, generated
 reports) lives in a gitignored `state.json` under `~/.{{PROJECT_NAME}}/` — so your
 real data never lands in a commit.
 
+## Setup
+
+```bash
+git clone <repo> && cd {{PROJECT_NAME}}
+./setup.sh          # builds the venv, installs, prints your Claude config line, runs preflight
+```
+
+> **macOS note:** clone this **outside** `~/Documents`, `~/Desktop`, and `~/Downloads`.
+> Those are privacy-protected, so Claude Desktop can't read a virtualenv there and the
+> server fails to launch with *"Operation not permitted."* `~/dev/{{PROJECT_NAME}}` is fine;
+> `setup.sh` warns you if you're in a protected folder.
+
+Run `./preflight.sh` anytime (e.g. right before a demo) for a GREEN/RED verdict that the
+server launches cleanly and the library has data.
+
 ## Use it from Claude
 
 The server runs over **two transports** from one codebase — stdio for a local

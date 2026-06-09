@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# One-command setup. Portable: works wherever the repo is cloned.
+#   git clone … && cd {{PROJECT_NAME}} && ./setup.sh
+set -euo pipefail
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$DIR"
+
+# Guard the macOS gotcha up front: a venv under Documents/Desktop/Downloads is
+# unreadable by Claude Desktop (TCC) → "Operation not permitted" on launch.
+case "$DIR" in
+  "$HOME/Documents/"*|"$HOME/Desktop/"*|"$HOME/Downloads/"*)
+    echo "⚠️  This repo is in a macOS-protected folder:"
+    echo "      $DIR"
+    echo "   Claude Desktop can't read a virtualenv here. Move the repo to a"
+    echo "   normal location (e.g. ~/dev/{{PROJECT_NAME}}) and re-run ./setup.sh."
+    echo "   (Continuing — the CLI works, but the Desktop connector won't.)"
+    echo ;;
+esac
+
+echo "Building virtualenv + installing…"
+python3 -m venv .venv
+.venv/bin/pip install -q --upgrade pip
+.venv/bin/pip install -q -e ".[test]" ruff
+
+CMD="$DIR/.venv/bin/{{PROJECT_NAME}}"
+cat <<CFG
+
+✅ Installed.
+
+To use it in Claude Desktop, add this under "mcpServers" in:
+  ~/Library/Application Support/Claude/claude_desktop_config.json
+
+  "{{PROJECT_NAME}}": { "command": "$CMD" }
+
+then FULLY QUIT (⌘Q) and reopen Claude Desktop.
+
+CFG
+
+echo "Running preflight…"
+bash "$DIR/preflight.sh"

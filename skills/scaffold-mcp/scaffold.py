@@ -51,6 +51,8 @@ MANIFEST: dict[str, str] = {
     "test_core.py.tmpl": "tests/test_core.py",
     "test_server_tools.py.tmpl": "tests/test_server_tools.py",
     "test_server_imports.py.tmpl": "tests/test_server_imports.py",
+    "setup.sh.tmpl": "setup.sh",
+    "preflight.sh.tmpl": "preflight.sh",
 }
 
 
@@ -105,6 +107,8 @@ def generate(tokens: dict[str, str], dest: Path, force: bool) -> list[Path]:
         out_path = dest / out_template.format(PACKAGE=package)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(render(src.read_text(), tokens))
+        if out_path.suffix == ".sh":
+            out_path.chmod(0o755)
         written.append(out_path)
     return written
 
