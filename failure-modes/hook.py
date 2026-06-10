@@ -8,8 +8,10 @@ the failure-mode catalog. It never blocks an edit, and on ANY internal
 error it exits 0 silently — a heuristic helper must never disrupt a session.
 
 Output contract (PostToolUse): exit 0 + JSON on stdout:
-  - additionalContext -> shown to Claude (so it can act / suggest a fix)
-  - systemMessage      -> shown to the user in the transcript
+  - hookSpecificOutput.additionalContext -> shown to Claude (so it can
+    act / suggest a fix); must be nested with hookEventName per the
+    hooks schema — a top-level additionalContext is ignored
+  - systemMessage (top-level) -> shown to the user in the transcript
 Only emitted when there's a hit; silent otherwise.
 
 A rule fires when, for a file matching its globs, ANY `any_match` pattern
@@ -60,11 +62,10 @@ def _rule_fires(content, rule):
 
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
-    try:
-        data = json.loads(sys.stdin.read() or "{}")
-        rules = _load_rules(here)
-    except Exception:
-        sys.exit(0)  # fail-safe: never disrupt the session
+    data = json.loads(sys.stdin.read() or "{}")
+    if not isinstance(data, dict):
+        sys.exit(0)  # valid JSON but not a payload object (e.g. bare number)
+    rules = _load_rules(here)
 
     hits = []
     for path in _edited_paths(data):
@@ -91,13 +92,16 @@ def main():
     )
     ids = sorted({r.get("id", "?") for _, r in hits})
     output = {
-        "additionalContext": (
-            "Failure-mode catalog flagged a possible issue in a file just "
-            "edited (heuristic — may be a false positive):\n"
-            + detail
-            + "\n\nIf it's a real instance, address it; otherwise note why "
-            "it's safe. For judgment-class checks, consider /failure-scan."
-        ),
+        "hookSpecificOutput": {
+            "hookEventName": "PostToolUse",
+            "additionalContext": (
+                "Failure-mode catalog flagged a possible issue in a file just "
+                "edited (heuristic — may be a false positive):\n"
+                + detail
+                + "\n\nIf it's a real instance, address it; otherwise note why "
+                "it's safe. For judgment-class checks, consider /failure-scan."
+            ),
+        },
         "systemMessage": (
             f"⚠ failure-mode check: possible {', '.join(ids)} in "
             f"{len(hits)} edited file(s). Heuristic — review or run /failure-scan."
@@ -108,4 +112,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        sys.exit(0)  # fail-safe: a heuristic helper must never disrupt a session

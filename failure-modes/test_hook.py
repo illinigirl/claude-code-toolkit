@@ -64,6 +64,19 @@ def main():
         rc, out = run(json.dumps({"tool_name": "Write", "tool_input": {"file_path": risky}}))
         check("risky Write -> warns", rc == 0 and fired(out))
 
+        # The warn payload must match the hooks schema exactly: Claude-facing
+        # context nested under hookSpecificOutput, user-facing systemMessage
+        # top-level. A top-level additionalContext is silently ignored.
+        payload = json.loads(out)
+        hso = payload.get("hookSpecificOutput", {})
+        check(
+            "warn payload -> documented schema",
+            hso.get("hookEventName") == "PostToolUse"
+            and "additionalContext" in hso
+            and "systemMessage" in payload
+            and "additionalContext" not in payload,
+        )
+
         rc, out = run(json.dumps({"tool_name": "Write", "tool_input": {"file_path": safe}}))
         check("safe (paginated) Write -> silent", rc == 0 and not out)
 
@@ -83,6 +96,15 @@ def main():
 
         rc, out = run("not json at all")
         check("garbage stdin -> fail-safe exit 0, silent", rc == 0 and not out)
+
+        # Valid JSON that isn't a payload object — the fail-safe must cover
+        # the whole run, not just the parse.
+        for label, weird in (("bare number", "123"), ("null", "null")):
+            rc, out = run(weird)
+            check(f"non-object stdin ({label}) -> fail-safe exit 0, silent", rc == 0 and not out)
+
+        rc, out = run(json.dumps({"tool_name": "MultiEdit", "tool_input": {"edits": "oops"}}))
+        check("malformed edits shape -> fail-safe exit 0, silent", rc == 0 and not out)
 
     print()
     if failures:
