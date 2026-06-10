@@ -1,7 +1,7 @@
 ---
 name: verify-mcp
 description: Verify an MCP server (in the scaffold-mcp pure-core + thin-adapters shape) is green and well-formed — set up a venv, run ruff + pytest, import the server to confirm its tools register, and inventory the @mcp.tool() surface (count + any missing docstrings, since docstrings are the contract Claude reads). Reports a readable health summary with a GREEN/RED verdict and, on failure, the specific cause. Use when checking an MCP project is ready to demo, commit, or ship. Pairs with scaffold-mcp ("scaffold builds it, verify proves it").
-argument-hint: [project-dir] [--run "<command>"]
+argument-hint: '[project-dir] [--run "<command>"]'
 ---
 
 # /verify-mcp

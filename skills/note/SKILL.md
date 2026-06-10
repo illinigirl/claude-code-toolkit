@@ -1,6 +1,6 @@
 ---
 name: note
-description: Frictionless note-to-self capture with automatic categorization. Invoked WITH text, it classifies the note into one of a few buckets (note, skill, mcp, todo), appends it to ~/.claude/notes/<category>.md, and reports where it filed it — so you never have to pick a category. Invoked with a bare category name it lists that bucket; invoked with nothing it lists everything grouped by category. Optional override: prefix with "<category>:" to force the bucket. Use to jot ideas, todos, skill/MCP candidates, or observations without breaking flow.
+description: 'Frictionless note-to-self capture with automatic categorization. Invoked WITH text, it classifies the note into one of a few buckets (note, skill, mcp, todo), appends it to ~/.claude/notes/<category>.md, and reports where it filed it — so you never have to pick a category. Invoked with a bare category name it lists that bucket; invoked with nothing it lists everything grouped by category. Optional override: prefix with "<category>:" to force the bucket. Use to jot ideas, todos, skill/MCP candidates, or observations without breaking flow.'
 ---
 
 # /note

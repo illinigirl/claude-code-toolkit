@@ -1,7 +1,7 @@
 ---
 name: scaffold-mcp
 description: Scaffold a new Python MCP server in the pure-core + thin-adapters shape — a runnable, tested, ruff-clean skeleton with a FastMCP server (dual stdio/HTTP transport), a CLI adapter, one I/O module, a bundled seed, tests, CLAUDE.md, and pyproject. Use when the user wants to start/create/bootstrap a new MCP server or tool server and wants a solid project skeleton rather than a single file.
-argument-hint: [server-name] [domain]
+argument-hint: "[server-name] [domain]"
 ---
 
 # Scaffold an MCP server

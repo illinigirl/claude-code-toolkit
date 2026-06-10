@@ -1,7 +1,7 @@
 ---
 name: handoff
 description: Write a PICKUP handoff file that captures the current session — the task, what's done (verified), what's in flight, the next steps, key paths/ids, and working norms — so a fresh session can resume cold with full context. Use when the user wants to checkpoint or hand off a session, save a pickup/handoff file, or wrap up so they can continue later. PICKUP files are personal context and stay local (never committed).
-argument-hint: [topic]
+argument-hint: "[topic]"
 ---
 
 # Write a session handoff (PICKUP file)

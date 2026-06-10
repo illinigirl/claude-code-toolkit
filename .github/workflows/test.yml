@@ -58,3 +58,9 @@ jobs:
           python3 -m json.tool .claude-plugin/plugin.json     > /dev/null
           python3 -m json.tool .claude-plugin/marketplace.json > /dev/null
           python3 -m json.tool hooks/hooks.json               > /dev/null
+      - name: SKILL.md frontmatter is valid YAML
+        # GitHub won't render frontmatter that isn't valid YAML (e.g. an
+        # unquoted argument-hint starting with "[" parses as a flow sequence).
+        run: |
+          pip install pyyaml
+          python3 -c "import yaml,glob; [yaml.safe_load(open(f).read().split('---')[1]) for f in sorted(glob.glob('skills/*/SKILL.md'))]; print('frontmatter OK')"
