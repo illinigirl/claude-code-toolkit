@@ -7,7 +7,7 @@
       "name": "claude-code-toolkit",
       "source": "./",
       "description": "Skills: scaffold-mcp (generate a tested MCP server), verify-mcp (check an MCP is green + well-formed with a health report), public-ready (audit + publish a repo), handoff (write a PICKUP handoff), design-note (write a structured design note), note (frictionless auto-categorized note-to-self), failure-scan (review a diff against a failure-mode catalog). Plus a PostToolUse hook that auto-flags risky patterns (e.g. unpaginated DynamoDB scans).",
-      "version": "0.5.5",
+      "version": "0.5.6",
       "license": "MIT",
       "keywords": ["mcp", "scaffold", "verify", "skills", "workflow", "publish", "hooks", "failure-modes", "code-review", "design", "notes"]
     }

@@ -66,7 +66,18 @@ def _identifier(text: str) -> str:
 def derive_tokens(args: argparse.Namespace) -> dict[str, str]:
     """Compute every substitution from the CLI args, filling sensible defaults."""
     name = args.name.strip()
+    # The name becomes a directory component and the package an importable
+    # module — validate both rather than scaffolding a broken (or, with a
+    # path separator in --name, misplaced) project.
+    if not re.fullmatch(r"[a-z][a-z0-9-]*", name):
+        raise SystemExit(
+            f"--name must be kebab-case ([a-z][a-z0-9-]*), got {name!r}"
+        )
     package = args.package or re.sub(r"[^a-z0-9]+", "", name.lower()) or "server"
+    if not re.fullmatch(r"[a-z][a-z0-9_]*", package):
+        raise SystemExit(
+            f"--package must be a lowercase Python identifier ([a-z][a-z0-9_]*), got {package!r}"
+        )
     domain = _identifier(args.domain or "record")
     domain_plural = _identifier(args.domain_plural) if args.domain_plural else f"{domain}s"
     env_prefix = re.sub(r"[^A-Z0-9]+", "_", name.upper()).strip("_") or "MCP"

@@ -49,7 +49,12 @@ def load_state() -> dict:
 
 
 def save_state(state: dict) -> None:
-    state_path().write_text(json.dumps(state, indent=2))
+    """Write-then-rename so a crash mid-write can't corrupt state.json
+    (os.replace is atomic on the same filesystem)."""
+    p = state_path()
+    tmp = p.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(state, indent=2))
+    os.replace(tmp, p)
 
 
 # ── {{DOMAIN_TITLE}} data (bundled seed + your added records) ────────
