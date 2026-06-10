@@ -18,7 +18,7 @@ import pytest  # noqa: E402
 from booktracker.models import Book  # noqa: E402
 
 _ROOT = Path(__file__).resolve().parent.parent
-_SEED = _ROOT / "data" / "booktracker.seed.json"
+_SEED = _ROOT / "src" / "booktracker" / "data" / "booktracker.seed.json"
 
 
 @pytest.fixture

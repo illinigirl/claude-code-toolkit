@@ -2,9 +2,10 @@
 
 Two locations, deliberately separate:
 
-- the **bundled seed** (`data/booktracker.seed.json`) ships in the repo,
-  read-only, so the project clones-and-runs with a realistic, already-populated
-  library plus a reading goal;
+- the **bundled seed** (`src/booktracker/data/booktracker.seed.json`) ships
+  *inside the package*, read-only, so the project runs with a realistic,
+  already-populated library plus a reading goal — from a clone, an editable
+  install, or a built wheel alike;
 - **mutable state** (`state.json`: books you've added, status changes, goals you
   set, exported reports) lives in a user data dir (BOOKTRACKER_DATA_DIR, default
   ~/.book-tracker) and is gitignored — a reviewer's experiments never dirty the
@@ -25,15 +26,10 @@ import dataclasses
 import json
 import os
 import re
+from importlib import resources
 from pathlib import Path
 
 from .models import STATUSES, Book
-
-_PKG_ROOT = Path(__file__).resolve().parents[2]  # repo root when run from a clone
-
-
-def seed_path() -> Path:
-    return Path(os.environ.get("BOOKTRACKER_SEED", _PKG_ROOT / "data" / "booktracker.seed.json"))
 
 
 def data_dir() -> Path:
@@ -49,7 +45,15 @@ def state_path() -> Path:
 # ── Seed (read-only) ─────────────────────────────────────────────────
 
 def _load_seed() -> dict:
-    return json.loads(seed_path().read_text())
+    """The bundled sample library. Resolved via importlib.resources because the
+    seed ships inside the package — a path computed from __file__ only works in
+    a src-layout checkout and breaks under a non-editable install, where the
+    module lands in site-packages. BOOKTRACKER_SEED overrides with a file path."""
+    override = os.environ.get("BOOKTRACKER_SEED")
+    if override:
+        return json.loads(Path(override).read_text())
+    seed = resources.files(__package__) / "data" / "booktracker.seed.json"
+    return json.loads(seed.read_text())
 
 
 # ── State (mutable) ──────────────────────────────────────────────────

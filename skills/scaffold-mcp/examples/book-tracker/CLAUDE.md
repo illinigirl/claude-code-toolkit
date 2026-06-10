@@ -14,7 +14,7 @@ importantly — the test for whether a new tool belongs here at all.
 A **self-contained MCP server**: a deterministic data plane (exact compute,
 persisted state, durable exports over your own reading log) that the LLM narrates.
 No auth, no cloud, no external API — it clones and runs with zero credentials,
-because the bundled `data/booktracker.seed.json` is a realistic starter library.
+because the bundled `src/booktracker/data/booktracker.seed.json` is a realistic starter library.
 
 ## Why this is an MCP and not just a prompt — the four-part test
 

@@ -2,8 +2,9 @@
 
 Two locations, deliberately separate:
 
-- the **bundled seed** (`data/{{PACKAGE}}.seed.json`) ships in the repo, read-only,
-  so the project clones-and-runs with zero setup;
+- the **bundled seed** (`src/{{PACKAGE}}/data/{{PACKAGE}}.seed.json`) ships
+  *inside the package*, read-only, so the project runs with zero setup — from a
+  clone, an editable install, or a built wheel alike;
 - **mutable state** (`state.json`: your added {{DOMAIN_PLURAL}} + generated report
   history) lives in a user data dir ({{ENV_PREFIX}}_DATA_DIR, default
   ~/.{{PROJECT_NAME}}) and is gitignored — a reviewer's experiments never dirty
@@ -18,15 +19,22 @@ from __future__ import annotations
 import json
 import os
 import re
+from importlib import resources
 from pathlib import Path
 
 from .models import Record
 
-_PKG_ROOT = Path(__file__).resolve().parents[2]  # repo root when run from a clone
 
-
-def seed_path() -> Path:
-    return Path(os.environ.get("{{ENV_PREFIX}}_SEED", _PKG_ROOT / "data" / "{{PACKAGE}}.seed.json"))
+def _load_seed() -> dict:
+    """The bundled seed. Resolved via importlib.resources because it ships inside
+    the package — a path computed from __file__ only works in a src-layout
+    checkout and breaks under a non-editable install, where the module lands in
+    site-packages. {{ENV_PREFIX}}_SEED overrides with a file path."""
+    override = os.environ.get("{{ENV_PREFIX}}_SEED")
+    if override:
+        return json.loads(Path(override).read_text())
+    seed = resources.files(__package__) / "data" / "{{PACKAGE}}.seed.json"
+    return json.loads(seed.read_text())
 
 
 def data_dir() -> Path:
@@ -60,7 +68,7 @@ def save_state(state: dict) -> None:
 # ── {{DOMAIN_TITLE}} data (bundled seed + your added records) ────────
 
 def load_{{DOMAIN_PLURAL}}() -> list[Record]:
-    raw = json.loads(seed_path().read_text())
+    raw = _load_seed()
     records = [Record.from_dict(r) for r in raw.get("{{DOMAIN_PLURAL}}", [])]
     records += [Record.from_dict(r) for r in load_state().get("records", [])]
     return records

@@ -55,10 +55,11 @@ src/{{PACKAGE}}/
   store.py     JSON persistence: bundled seed + mutable state   (the only I/O)
   server.py    MCP adapter (FastMCP), dual stdio/HTTP transport
   cli.py       CLI adapter
-data/{{PACKAGE}}.seed.json   bundled starter data (clones-and-runs)
+  data/{{PACKAGE}}.seed.json   bundled starter data (ships inside the package)
 ```
 
-The bundled seed ships in the repo; your mutable state (added records, generated
+The bundled seed ships inside the package, so it resolves under any install —
+clone, editable, or wheel; your mutable state (added records, generated
 reports) lives in a gitignored `state.json` under `~/.{{PROJECT_NAME}}/` — so your
 real data never lands in a commit.
 

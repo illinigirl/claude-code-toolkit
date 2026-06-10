@@ -2,7 +2,7 @@
   "name": "claude-code-toolkit",
   "displayName": "Claude Code Toolkit",
   "description": "Skills to scaffold MCP servers, verify an MCP is green and well-formed, audit repos for public release, write session handoffs, write structured design notes, capture quick notes-to-self, and review a diff against a failure-mode catalog — plus a PostToolUse hook that auto-flags risky patterns.",
-  "version": "0.5.8",
+  "version": "0.5.9",
   "author": { "name": "Megan Schott" },
   "repository": "https://github.com/illinigirl/claude-code-toolkit",
   "license": "MIT",

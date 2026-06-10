@@ -58,9 +58,10 @@ reliability win: the data plane can't hallucinate a sum.
 
 ## Bundled seed vs. gitignored mutable state
 
-- **Bundled seed** (`data/<pkg>.seed.json`) ships read-only so the repo
-  clones-and-runs cold. Keep it small, generic, and free of private data or
-  unverified claims — it's in a public repo.
+- **Bundled seed** (`src/<pkg>/data/<pkg>.seed.json`) ships read-only *inside
+  the package* — resolved via importlib.resources, so it's found from a clone,
+  an editable install, or a built wheel alike. Keep it small, generic, and free
+  of private data or unverified claims — it's in a public repo.
 - **Mutable state** (`state.json`) lives in a user data dir (an env-var override,
   default `~/.<name>`) and is gitignored. A reviewer's experiments never dirty
   the repo; real user data never lands in a commit.

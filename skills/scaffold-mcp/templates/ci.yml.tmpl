@@ -17,3 +17,10 @@ jobs:
         run: ruff check .
       - name: Test
         run: python -m pytest -q
+      - name: Non-editable install finds the packaged seed
+        # Editable installs run from the checkout, so they'd never catch a seed
+        # path that breaks once the module lands in site-packages.
+        run: |
+          pip uninstall -y -q {{PROJECT_NAME}}
+          pip install -q .
+          cd /tmp && python -m {{PACKAGE}}.cli summary

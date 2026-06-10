@@ -39,7 +39,7 @@ MANIFEST: dict[str, str] = {
     "LICENSE.tmpl": "LICENSE",
     "README.md.tmpl": "README.md",
     "CLAUDE.md.tmpl": "CLAUDE.md",
-    "seed.json.tmpl": "data/{PACKAGE}.seed.json",
+    "seed.json.tmpl": "src/{PACKAGE}/data/{PACKAGE}.seed.json",
     "init.py.tmpl": "src/{PACKAGE}/__init__.py",
     "models.py.tmpl": "src/{PACKAGE}/models.py",
     "core.py.tmpl": "src/{PACKAGE}/core.py",

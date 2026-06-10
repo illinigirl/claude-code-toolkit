@@ -134,10 +134,11 @@ src/booktracker/
   store.py     JSON persistence: seed + mutable state        (the only I/O)
   server.py    MCP adapter (FastMCP), dual stdio/HTTP transport
   cli.py       CLI adapter — runs the whole thing without an MCP client
-data/booktracker.seed.json   bundled starter library (clones-and-runs)
+  data/booktracker.seed.json   bundled starter library (ships inside the package)
 ```
 
-The seed ships in the repo; your added books, edits, deletions, goals, and reports
+The seed ships inside the package (resolved via importlib.resources, so a
+non-editable install finds it too); your added books, edits, deletions, goals, and reports
 live in a gitignored `state.json` under `~/.book-tracker/` — real data never lands
 in a commit. The seed is immutable, so editing a *seed* book uses **copy-on-write**:
 the first edit copies that record into your state and your copy wins thereafter;

@@ -17,7 +17,7 @@ import pytest  # noqa: E402
 
 from {{PACKAGE}}.models import Record  # noqa: E402
 
-_SEED = Path(__file__).resolve().parent.parent / "data" / "{{PACKAGE}}.seed.json"
+_SEED = SRC / "{{PACKAGE}}" / "data" / "{{PACKAGE}}.seed.json"
 
 
 @pytest.fixture

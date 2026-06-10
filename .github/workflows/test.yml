@@ -21,6 +21,15 @@ jobs:
           pip install -e ".[test]" ruff
           ruff check .
           python -m pytest -q
+      - name: Non-editable install finds the packaged seed
+        # The regression this guards: a seed resolved relative to __file__ works
+        # in a src-layout checkout but breaks once the module lands in
+        # site-packages. Editable installs alone can never catch it.
+        working-directory: /tmp
+        run: |
+          pip uninstall -y -q ci-demo
+          pip install -q ./ci-demo
+          python -m cidemo.cli summary
 
   book-tracker-example:
     runs-on: ubuntu-latest
@@ -43,6 +52,11 @@ jobs:
           out=$(PYTHONPATH=src python -m booktracker.cli top-genres)
           echo "$out"
           echo "$out" | grep -q "Fantasy"
+      - name: Non-editable install finds the packaged seed
+        run: |
+          pip uninstall -y -q book-tracker
+          pip install -q ./skills/scaffold-mcp/examples/book-tracker
+          cd /tmp && python -m booktracker.cli top-genres | grep -q "Fantasy"
 
   failure-modes:
     runs-on: ubuntu-latest

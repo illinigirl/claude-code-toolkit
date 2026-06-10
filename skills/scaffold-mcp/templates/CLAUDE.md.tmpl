@@ -15,7 +15,7 @@ importantly — the test for whether a new tool belongs here at all.
 A **self-contained MCP server**: a deterministic data plane (exact compute,
 persisted state, durable exports over your own local data) that the LLM narrates.
 No auth, no cloud, no external API — it clones and runs with zero credentials,
-because the bundled `data/{{PACKAGE}}.seed.json` is enough to exercise every tool.
+because the bundled `src/{{PACKAGE}}/data/{{PACKAGE}}.seed.json` is enough to exercise every tool.
 
 ## Why this is an MCP and not just a prompt — the four-part test
 
@@ -80,8 +80,9 @@ not the repo. Point it at a temp dir to experiment without touching real data:
 - **Deterministic math in the data plane; the LLM narrates.** `summarize` is an
   exact function — counts and totals are never left to the model. The model's
   job is selection and conversation, not arithmetic.
-- **Bundled seed vs. mutable state, kept apart.** `data/{{PACKAGE}}.seed.json`
-  ships read-only so the repo runs cold; your added records and generated reports
+- **Bundled seed vs. mutable state, kept apart.** `src/{{PACKAGE}}/data/{{PACKAGE}}.seed.json`
+  ships read-only *inside the package* (resolved via importlib.resources, so a
+  non-editable install finds it too); your added records and generated reports
   go in a gitignored `state.json` under a user dir. Personal data never lands in
   a public commit.
 - **Server-side I/O degrades gracefully for remote callers.** `export_report`

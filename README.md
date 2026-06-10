@@ -30,9 +30,9 @@ trip-logger/
 │   ├── core.py        pure domain logic, no I/O — the part you replace
 │   ├── store.py       JSON-file persistence (the one I/O module)
 │   ├── cli.py         thin CLI adapter over the same core
+│   ├── data/…seed.json   bundled seed, packaged so any install runs immediately
 │   └── models.py · exports.py · __init__.py
 ├── tests/             conftest + core/server tests (green on generation)
-├── data/…seed.json    bundled seed, so it runs immediately
 ├── .github/workflows/ CI (pytest)
 ├── CLAUDE.md          orientation: architecture + where to extend
 ├── setup.sh · preflight.sh   one-command venv setup + lint/test gate
