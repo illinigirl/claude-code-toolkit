@@ -29,7 +29,7 @@ import re
 from importlib import resources
 from pathlib import Path
 
-from .models import STATUSES, Book
+from .models import STATUSES, Book, validate_book_fields
 
 
 def data_dir() -> Path:
@@ -149,28 +149,27 @@ def unique_id(title: str, taken: set[str] | None = None) -> str:
     return candidate
 
 
-def add_book(book: Book) -> str:
-    """Append one book to mutable state. Returns its id."""
-    state = load_state()
-    state["books"].append(book.to_dict())
-    save_state(state)
-    return book.id
-
-
 def add_books(rows: list[dict]) -> dict:
-    """Bulk-add books, skipping any that duplicate an existing title+author. This
-    is the single sink every import mode funnels into — natural language, a
-    photographed shelf (Claude's vision extracts the rows), or a pasted Goodreads
-    export. Returns the ids added and the titles skipped as duplicates."""
+    """Bulk-add books, validating each row and skipping any that duplicate an
+    existing title+author. This is the single sink EVERY ingest path funnels
+    into — a single add, natural language, a photographed shelf (Claude's vision
+    extracts the rows), or a pasted Goodreads export — so validation and dedupe
+    are decided once, here, not per-adapter. Returns the ids added, the titles
+    skipped as duplicates, and any rows skipped as invalid (with why)."""
     state = load_state()
     taken = taken_ids()
     taken_keys = existing_keys()
     added: list[str] = []
     skipped: list[str] = []
+    invalid: list[dict] = []
     for row in rows:
         title = (row.get("title") or "").strip()
         author = (row.get("author") or "").strip()
         if not title:
+            continue
+        err = validate_book_fields(status=row.get("status"), rating=row.get("rating"))
+        if err:
+            invalid.append({"title": title, "error": err})
             continue
         key = _dedupe_key(title, author)
         if key in taken_keys:
@@ -183,7 +182,7 @@ def add_books(rows: list[dict]) -> dict:
         state["books"].append(book.to_dict())
         added.append(rid)
     save_state(state)
-    return {"added": added, "skipped_duplicates": skipped}
+    return {"added": added, "skipped_duplicates": skipped, "skipped_invalid": invalid}
 
 
 # Every field of a Book except its id can be edited.
@@ -195,12 +194,13 @@ def update_book(book_id: str, changes: dict) -> bool:
     `changes` with a non-None value are applied — the rest stay as they are — so
     callers pass just what's changing. The first edit of a seed book writes a full
     copy into mutable state under the same id; thereafter your copy wins. Returns
-    False if the id is unknown (incl. already-deleted) or `status` is invalid."""
+    False if the id is unknown (incl. already-deleted) or a value is invalid
+    (unknown status, rating outside 1-5)."""
     current = {b.id: b for b in load_books()}.get(book_id)
     if current is None:
         return False
     clean = {k: v for k, v in changes.items() if k in _EDITABLE and v is not None}
-    if "status" in clean and clean["status"] not in STATUSES:
+    if validate_book_fields(status=clean.get("status"), rating=clean.get("rating")):
         return False
     if "rating" in clean:
         clean["rating"] = int(clean["rating"])

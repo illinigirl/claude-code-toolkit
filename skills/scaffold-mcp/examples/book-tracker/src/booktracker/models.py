@@ -17,6 +17,24 @@ from dataclasses import dataclass
 STATUSES = ("to-read", "reading", "read")
 
 
+def validate_book_fields(status: str | None = None, rating: int | None = None) -> str | None:
+    """Validate the constrained Book fields a caller is setting — pass only those;
+    None means "not being set" and is always fine. Returns a human-readable
+    problem, or None if everything given is valid. Lives in the pure model layer
+    so every write path (single add, bulk sink, update) shares one rulebook
+    instead of each adapter re-deciding what's legal."""
+    if status is not None and status not in STATUSES:
+        return f"status must be one of: {', '.join(STATUSES)}"
+    if rating is not None:
+        try:
+            r = int(rating)
+        except (TypeError, ValueError):
+            return "rating must be a number from 1 to 5"
+        if not 1 <= r <= 5:
+            return "rating must be 1-5"
+    return None
+
+
 @dataclass(frozen=True)
 class Book:
     """One book in your log. `rating` (1–5) and `finished` (ISO date) are only

@@ -20,7 +20,7 @@ from datetime import date
 
 from . import core, store
 from .exports import export_title, render_grouped_markdown, render_grouped_text
-from .models import STATUSES, Book
+from .models import STATUSES
 
 
 def cmd_top_genres(args):
@@ -82,19 +82,29 @@ def cmd_list(args):
 
 
 def cmd_add(args):
-    rid = store.unique_id(args.title)
-    store.add_book(Book(id=rid, title=args.title, author=args.author, genre=args.genre,
-                        status=args.status, rating=args.rating, pages=args.pages,
-                        finished=args.finished))
-    print(f"Added {rid}")
+    # Same validate-dedupe-persist sink the MCP tools use — the CLI is just
+    # another adapter, so it can't add what the server would reject.
+    result = store.add_books([{"title": args.title, "author": args.author,
+                               "genre": args.genre, "status": args.status,
+                               "rating": args.rating, "pages": args.pages,
+                               "finished": args.finished}])
+    if result["added"]:
+        print(f"Added {result['added'][0]}")
+    elif result["skipped_duplicates"]:
+        raise SystemExit(f"Already in your library (same title + author): {args.title}")
+    else:
+        raise SystemExit(f"Not added: {result['skipped_invalid'][0]['error']}")
 
 
 def cmd_import_goodreads(args):
     text = open(args.csv_file, encoding="utf-8").read()
     rows = core.parse_goodreads_csv(text)
     result = store.add_books(rows)
-    print(f"Parsed {len(rows)} rows: added {len(result['added'])}, "
-          f"skipped {len(result['skipped_duplicates'])} duplicates.")
+    msg = (f"Parsed {len(rows)} rows: added {len(result['added'])}, "
+           f"skipped {len(result['skipped_duplicates'])} duplicates.")
+    if result["skipped_invalid"]:
+        msg += f" Skipped {len(result['skipped_invalid'])} invalid rows."
+    print(msg)
 
 
 def cmd_samples(args):
@@ -165,7 +175,7 @@ def build_parser() -> argparse.ArgumentParser:
     pa.add_argument("title")
     pa.add_argument("--author", default="")
     pa.add_argument("--genre", default="Uncategorized")
-    pa.add_argument("--status", default="to-read")
+    pa.add_argument("--status", choices=list(STATUSES), default="to-read")
     pa.add_argument("--rating", type=int)
     pa.add_argument("--pages", type=int, default=0)
     pa.add_argument("--finished")

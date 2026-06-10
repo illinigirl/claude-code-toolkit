@@ -25,7 +25,6 @@ from mcp.server.fastmcp import FastMCP
 
 from . import core, store
 from .exports import export_title, render_grouped_markdown, render_grouped_text
-from .models import Book
 
 mcp = FastMCP("book-tracker")
 
@@ -39,12 +38,20 @@ def add_book(title: str, author: str, genre: str = "Uncategorized", status: str 
              rating: int | None = None, pages: int = 0, finished: str | None = None) -> dict:
     """Add one book to your library. Use for a single book you mention or
     photograph. `status` is to-read / reading / read; `rating` (1–5) and
-    `finished` (YYYY-MM-DD) apply once you've read it."""
-    rid = store.unique_id(title)
-    book = Book(id=rid, title=title, author=author, genre=genre, status=status,
-                rating=rating, pages=pages, finished=finished)
-    store.add_book(book)
-    return {"added": True, "book_id": rid}
+    `finished` (YYYY-MM-DD) apply once you've read it. Goes through the same
+    validate-dedupe-persist sink as bulk adds, so a duplicate (same title +
+    author) or an invalid status/rating is reported back, not silently stored."""
+    result = store.add_books([{"title": title, "author": author, "genre": genre,
+                               "status": status, "rating": rating, "pages": pages,
+                               "finished": finished}])
+    if result["added"]:
+        return {"added": True, "book_id": result["added"][0]}
+    if result["skipped_invalid"]:
+        return {"added": False, "error": result["skipped_invalid"][0]["error"], "title": title}
+    if result["skipped_duplicates"]:
+        return {"added": False, "title": title,
+                "error": "already in your library (same title + author) — use update_book to edit it"}
+    return {"added": False, "error": "title is required"}
 
 
 @mcp.tool()

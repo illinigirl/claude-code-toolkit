@@ -51,6 +51,46 @@ def test_add_book_flows_into_stats(srv):
     assert srv.reading_summary()["read"] == 12
 
 
+def test_add_book_rejects_invalid_status_and_rating(srv):
+    # add_book goes through the same validated sink as bulk adds — an invalid
+    # value is reported, not silently persisted (where it would then vanish
+    # from every status-keyed view).
+    res = srv.add_book(title="Babel", author="R.F. Kuang", status="finished")
+    assert res["added"] is False
+    assert "status" in res["error"]
+    res = srv.add_book(title="Babel", author="R.F. Kuang", status="read", rating=99)
+    assert res["added"] is False
+    assert "rating" in res["error"]
+    assert srv.find_books(author="Kuang")["count"] == 0  # nothing landed
+    assert srv.reading_summary()["total"] == 15
+
+
+def test_add_book_dedupes_against_existing(srv):
+    # same title + author as a seed book → reported as a duplicate, and no
+    # shadow "dune-2" record is created
+    res = srv.add_book(title="Dune", author="Frank Herbert")
+    assert res["added"] is False
+    assert "already in your library" in res["error"]
+    assert srv.find_books(author="Herbert")["count"] == 1
+
+
+def test_add_books_skips_invalid_rows(srv):
+    rows = [
+        {"title": "Piranesi", "author": "Susanna Clarke", "genre": "Fantasy"},
+        {"title": "Bad Row", "author": "Nobody", "status": "abandoned"},
+    ]
+    res = srv.add_books(rows)
+    assert len(res["added"]) == 1
+    assert res["skipped_invalid"] == [
+        {"title": "Bad Row", "error": "status must be one of: to-read, reading, read"}]
+    assert srv.find_books(author="Nobody")["count"] == 0
+
+
+def test_update_book_rejects_out_of_range_rating(srv):
+    assert srv.update_book("dune", rating=99)["updated"] is False
+    assert srv.find_books(author="Herbert")["books"][0]["rating"] == 4  # unchanged
+
+
 def test_mark_status_overlays_a_seed_book(srv):
     # finish the book currently being read; reading 1 → 0, read 11 → 12
     assert srv.mark_status("the-two-towers", "read")["updated"] is True
