@@ -86,7 +86,8 @@ language — Claude picks the right tool and narrates the result:
 > photograph a shelf, or paste a CSV — all three are "the model parses the messy
 > input; the tool persists it exactly." That division of labor is the point.
 
-**Persist / update:** `mark_status` (to-read → reading → read), `update_book`
+**Persist / update:** `mark_status` (to-read → reading → read; marking read
+stamps the finish date so it counts toward your goal), `update_book`
 (fix any field — the genre Claude guessed, a rating, a title), `delete_book`
 (drop one book), `set_goal`. `mark_status` is just the common case of `update_book`.
 
@@ -143,7 +144,8 @@ live in a gitignored `state.json` under `~/.book-tracker/` — real data never l
 in a commit. The seed is immutable, so editing a *seed* book uses **copy-on-write**:
 the first edit copies that record into your state and your copy wins thereafter;
 deleting one records a tombstone the loader filters out. One overlay mechanism for
-every mutation — `mark_status` is just `update_book` changing the status field.
+every mutation — `mark_status` is just `update_book` changing the status (and
+stamping `finished` when a book becomes read).
 
 ## Use it from Claude
 

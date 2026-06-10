@@ -124,7 +124,8 @@ repo. Point it at a temp dir to experiment without touching real data:
   seed can't be edited, so a change to a *seed* book uses copy-on-write — the first
   edit copies it into state and your copy wins; a delete records a tombstone the
   loader filters. One mechanism for every mutation: `mark_status` is `update_book`
-  changing one field, not a parallel overlay.
+  changing the status (stamping `finished` when a book becomes read), not a
+  parallel overlay.
 - **Server-side I/O degrades gracefully for remote callers.** `export_markdown`
   returns the rendered content inline (not just a path) and defaults to a known
   data-dir location, not the process cwd. The importer takes pasted CSV *text*,

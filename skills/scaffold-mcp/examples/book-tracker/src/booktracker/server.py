@@ -76,10 +76,14 @@ def import_goodreads_csv(csv_text: str) -> dict:
 
 
 @mcp.tool()
-def mark_status(book_id: str, status: str) -> dict:
+def mark_status(book_id: str, status: str, finished: str | None = None) -> dict:
     """Move a book between to-read / reading / read (e.g. you finished it). A
-    shortcut for the common case — update_book changes any field, this just status."""
-    ok = store.mark_status(book_id, status)
+    shortcut for the common case — update_book changes any field, this just
+    status. Marking a book "read" stamps its finish date (today, or pass
+    `finished` as YYYY-MM-DD for "I finished it last week"), so it counts
+    toward your reading goal and monthly stats; a book that already has a
+    finish date keeps it."""
+    ok = store.mark_status(book_id, status, finished=finished)
     return {"updated": ok, "book_id": book_id, "status": status} if ok else {
         "updated": False, "error": "unknown book_id or invalid status", "book_id": book_id}
 

@@ -16,7 +16,8 @@ Instead we use **copy-on-write**: the first edit of a seed book copies the whole
 record into mutable state under the same id, and `load_books` lets your copy win.
 Deleting a seed book records a tombstone (`hidden_ids`) the loader filters out.
 One overlay mechanism for every mutation — `mark_status` is just `update_book`
-changing the status field. Keeping all I/O in this one module is what lets every
+changing the status (and stamping `finished` when a book becomes read).
+Keeping all I/O in this one module is what lets every
 other module stay pure and unit-testable without a runtime.
 """
 
@@ -26,6 +27,7 @@ import dataclasses
 import json
 import os
 import re
+from datetime import date
 from importlib import resources
 from pathlib import Path
 
@@ -215,12 +217,24 @@ def update_book(book_id: str, changes: dict) -> bool:
     return True
 
 
-def mark_status(book_id: str, status: str) -> bool:
-    """Move a book between to-read / reading / read. A thin shortcut over
-    update_book — the common 'I finished it' edit. False on unknown id / status."""
+def mark_status(book_id: str, status: str, finished: str | None = None) -> bool:
+    """Move a book between to-read / reading / read — the common 'I finished it'
+    edit, still one update_book overlay underneath. Marking a book "read" also
+    stamps `finished` (today, unless a date is given) when it has no date yet:
+    without the date, a finished book is invisible to everything date-keyed —
+    books_by_month, latest_finished_year, pace_to_goal — so "I finished it"
+    would never advance a reading goal. Re-marking a book that already has a
+    date keeps the original. False on unknown id / invalid status."""
     if status not in STATUSES:
         return False
-    return update_book(book_id, {"status": status})
+    changes: dict = {"status": status}
+    if status == "read":
+        current = {b.id: b for b in load_books()}.get(book_id)
+        if current is None:
+            return False
+        if current.finished is None:
+            changes["finished"] = finished or date.today().isoformat()
+    return update_book(book_id, changes)
 
 
 def delete_book(book_id: str) -> bool:

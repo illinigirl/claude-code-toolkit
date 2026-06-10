@@ -48,9 +48,9 @@ export BOOKTRACKER_DATA_DIR=$(mktemp -d)   # fresh state → the demo always ope
 PYTHONPATH=src python3 -m booktracker.cli top-genres
 
 # 2. PROVE IT'S REAL — only now install deps and run the suite (the credibility
-#    beat: 42 passing tests). This is the only part that needs the MCP SDK.
+#    beat: 49 passing tests). This is the only part that needs the MCP SDK.
 python3 -m venv .venv && .venv/bin/pip install -e ".[test]" ruff
-.venv/bin/ruff check . && .venv/bin/python -m pytest -q            # expect 42 passed
+.venv/bin/ruff check . && .venv/bin/python -m pytest -q            # expect 49 passed
 ```
 
 Lead with the **zero-install headline** — a real tool answering in seconds, with

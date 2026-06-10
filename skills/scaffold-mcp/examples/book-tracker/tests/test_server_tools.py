@@ -99,6 +99,35 @@ def test_mark_status_overlays_a_seed_book(srv):
     assert s["read"] == 12
 
 
+def test_mark_status_read_stamps_finished_and_feeds_the_goal(srv):
+    from datetime import date
+    # the-two-towers ships as "reading" with no finish date. Finishing it must
+    # stamp the date — without one the book never appears in books_by_month,
+    # latest_finished_year, or pace_to_goal, so "I finished it" wouldn't
+    # advance a reading goal.
+    assert srv.mark_status("the-two-towers", "read")["updated"] is True
+    book = next(b for b in srv.find_books(status="read")["books"]
+                if b["id"] == "the-two-towers")
+    assert book["finished"] == date.today().isoformat()
+    srv.set_goal(date.today().year, 5)
+    assert srv.pace_to_goal(date.today().year)["read"] == 1
+
+
+def test_mark_status_read_accepts_an_explicit_date(srv):
+    # "I finished it last week" — the date lands in that year's goal count
+    assert srv.mark_status("the-two-towers", "read", finished="2024-12-31")["updated"] is True
+    g = srv.pace_to_goal(2024)
+    assert g["read"] == 12          # the 11 seed reads + this one
+    assert g["remaining"] == 0      # seed goal for 2024 is 12
+
+
+def test_mark_status_read_keeps_an_existing_date(srv):
+    # dune ships already read with a date; re-marking read must not re-stamp it
+    before = srv.find_books(author="Herbert")["books"][0]["finished"]
+    assert srv.mark_status("dune", "read")["updated"] is True
+    assert srv.find_books(author="Herbert")["books"][0]["finished"] == before
+
+
 def test_mark_status_rejects_unknown(srv):
     assert srv.mark_status("not-a-book", "read")["updated"] is False
 

@@ -94,7 +94,7 @@ caveat (e.g. tests skipped offline, or undocumented tools). Example:
 <project> — MCP health check
   ✅ Install        deps resolved
   ✅ Lint (ruff)    All checks passed
-  ✅ Tests          42 passed, 0 failed
+  ✅ Tests          49 passed, 0 failed
   ✅ Smoke          server imports cleanly
   ✅ Contract       17 tools, 17 documented
   ──────────────────────────────────────────
