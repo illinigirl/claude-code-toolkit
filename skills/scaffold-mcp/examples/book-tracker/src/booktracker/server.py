@@ -225,9 +225,9 @@ def export_markdown(path: str | None = None, format: str = "markdown",
 
     `format`: "markdown" (default) or "text". With no `path`, writes to a known
     location under the data dir (not the process cwd, unpredictable when a desktop
-    client launches the server). `content` is always returned, so a remote caller
-    who can't read the server's disk still gets it."""
-    from pathlib import Path
+    client launches the server); a given `path` is confined to the data dir too.
+    `content` is always returned, so a remote caller who can't read the server's
+    disk still gets it."""
     if group_by not in _GROUP_BY:
         return {"error": f"group_by must be one of {list(_GROUP_BY)}", "group_by": group_by}
     books = core.find_books(store.load_books(), genre=genre, author=author,
@@ -237,7 +237,11 @@ def export_markdown(path: str | None = None, format: str = "markdown",
         content, ext = render_grouped_text(books, title, group_by), "txt"
     else:
         content, ext = render_grouped_markdown(books, title, group_by), "md"
-    out = Path(path) if path else store.export_default_path(date.today().isoformat(), ext=ext)
+    try:
+        out = (store.resolve_export_path(path) if path
+               else store.export_default_path(date.today().isoformat(), ext=ext))
+    except ValueError as e:
+        return {"error": str(e), "path": path}
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(content)
     store.record_export(title, content)

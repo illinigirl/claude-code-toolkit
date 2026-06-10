@@ -124,7 +124,6 @@ def cmd_reset(args):
 
 
 def cmd_export(args):
-    from pathlib import Path
     books = core.find_books(store.load_books(), genre=args.genre, author=args.author,
                             status=args.status, min_rating=args.min_rating)
     title = export_title(args.group_by, args.min_rating)
@@ -132,7 +131,11 @@ def cmd_export(args):
         content, ext = render_grouped_text(books, title, args.group_by), "txt"
     else:
         content, ext = render_grouped_markdown(books, title, args.group_by), "md"
-    out = Path(args.path) if args.path else store.export_default_path(date.today().isoformat(), ext=ext)
+    try:
+        out = (store.resolve_export_path(args.path) if args.path
+               else store.export_default_path(date.today().isoformat(), ext=ext))
+    except ValueError as e:
+        raise SystemExit(f"error: {e}") from None
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(content)
     print(f"Wrote {out}\n")

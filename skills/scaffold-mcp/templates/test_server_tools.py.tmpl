@@ -6,6 +6,8 @@ sandboxed data dir, so no transport/runtime is needed. Skips if the MCP SDK
 isn't installed (the pure-core tests don't need it).
 """
 
+from pathlib import Path
+
 import pytest
 
 pytest.importorskip("mcp")  # tool layer needs the MCP SDK; pure-core tests don't
@@ -56,3 +58,20 @@ def test_filter_narrows_results(srv):
 
 def test_error_path_unknown_id(srv):
     assert "error" in srv.get_{{DOMAIN}}("does-not-exist")
+
+
+def test_export_rejects_path_outside_data_dir(srv, tmp_path):
+    # `path` comes from the model — confined to the data dir so the export tool
+    # can't be steered into overwriting arbitrary files (worst over HTTP).
+    escape = tmp_path.parent / "escape.md"
+    res = srv.export_report(path=str(escape))
+    assert "error" in res
+    assert not escape.exists()
+
+
+def test_export_relative_path_lands_in_data_dir(srv, tmp_path):
+    res = srv.export_report(path="reports/mine.md")
+    assert "error" not in res
+    expected = (tmp_path / "reports" / "mine.md").resolve()
+    assert Path(res["written"]) == expected
+    assert expected.exists()

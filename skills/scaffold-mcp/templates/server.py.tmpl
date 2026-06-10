@@ -78,16 +78,20 @@ def export_report(path: str | None = None, format: str = "markdown") -> dict:
     `format`: "markdown" (default — table) or "text" (plain, for pasting into
     Notes / Reminders). With no `path`, writes to a known location under the data
     dir (not the process cwd, which is unpredictable when Claude Desktop launches
-    the server). The `content` field is always returned, so a remote caller who
-    can't read the server's disk still gets the result."""
-    from pathlib import Path
+    the server); a given `path` is confined to the data dir too. The `content`
+    field is always returned, so a remote caller who can't read the server's
+    disk still gets the result."""
     s = core.summarize(store.load_{{DOMAIN_PLURAL}}())
     title = f"{{PROJECT_NAME}} report — {date.today().isoformat()}"
     if format == "text":
         content, ext = render_report_text(s, title), "txt"
     else:
         content, ext = render_report_markdown(s, title), "md"
-    out = Path(path) if path else store.export_default_path(date.today().isoformat(), ext=ext)
+    try:
+        out = (store.resolve_export_path(path) if path
+               else store.export_default_path(date.today().isoformat(), ext=ext))
+    except ValueError as e:
+        return {"error": str(e), "path": path}
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(content)
     store.record_report(title, content)

@@ -289,3 +289,18 @@ def export_default_path(name: str, ext: str = "md") -> Path:
     d = data_dir() / "reports"
     d.mkdir(parents=True, exist_ok=True)
     return d / f"{name}.{ext}"
+
+
+def resolve_export_path(path: str) -> Path:
+    """Confine a caller-supplied export path to the data dir.
+
+    `path` arrives from the model (or a CLI flag); used raw it would make the
+    export tool an arbitrary-file-write primitive — worst over the HTTP
+    transport. Relative paths resolve under the data dir; absolute paths must
+    already point inside it. Raises ValueError for anything that escapes."""
+    base = data_dir().resolve()
+    p = Path(path)
+    out = (p if p.is_absolute() else base / p).resolve()
+    if not out.is_relative_to(base):
+        raise ValueError(f"export path must stay under the data dir ({base})")
+    return out

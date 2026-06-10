@@ -38,7 +38,7 @@ book-tracker/
 ├── setup.sh · preflight.sh   one-command venv setup + lint/test gate
 └── pyproject.toml · requirements.txt · .gitignore · LICENSE · README.md
 
-$ pytest -q      →  15 passed
+$ pytest -q      →  17 passed
 $ ruff check .   →  All checks passed!
 ```
 

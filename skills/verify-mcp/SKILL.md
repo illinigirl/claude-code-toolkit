@@ -94,7 +94,7 @@ caveat (e.g. tests skipped offline, or undocumented tools). Example:
 <project> — MCP health check
   ✅ Install        deps resolved
   ✅ Lint (ruff)    All checks passed
-  ✅ Tests          40 passed, 0 failed
+  ✅ Tests          42 passed, 0 failed
   ✅ Smoke          server imports cleanly
   ✅ Contract       17 tools, 17 documented
   ──────────────────────────────────────────
@@ -105,7 +105,7 @@ On a failure, keep the same shape but put the **specific** cause under the ❌ l
 and add your read on the likely fix. Examples:
 
 ```
-  ❌ Tests          38 passed, 2 failed
+  ❌ Tests          40 passed, 2 failed
        test_top_genres_over_seed — expected Fantasy=4, got 3
        likely: a seed book's status or genre changed
 ```

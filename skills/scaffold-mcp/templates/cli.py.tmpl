@@ -41,14 +41,17 @@ def cmd_summary(args):
 
 
 def cmd_export(args):
-    from pathlib import Path
     s = core.summarize(store.load_{{DOMAIN_PLURAL}}())
     title = f"{{PROJECT_NAME}} report — {date.today().isoformat()}"
     if args.format == "text":
         content, ext = render_report_text(s, title), "txt"
     else:
         content, ext = render_report_markdown(s, title), "md"
-    out = Path(args.path) if args.path else store.export_default_path(date.today().isoformat(), ext=ext)
+    try:
+        out = (store.resolve_export_path(args.path) if args.path
+               else store.export_default_path(date.today().isoformat(), ext=ext))
+    except ValueError as e:
+        raise SystemExit(f"error: {e}") from None
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(content)
     print(f"Wrote {out}")

@@ -196,3 +196,20 @@ def test_export_group_by_year(srv):
 
 def test_export_rejects_unknown_group_by(srv):
     assert "error" in srv.export_markdown(group_by="publisher")
+
+
+def test_export_rejects_path_outside_data_dir(srv, tmp_path):
+    # `path` comes from the model — confined to the data dir so the export tool
+    # can't be steered into overwriting arbitrary files (worst over HTTP).
+    escape = tmp_path.parent / "escape.md"
+    res = srv.export_markdown(path=str(escape))
+    assert "error" in res
+    assert not escape.exists()
+
+
+def test_export_relative_path_lands_in_data_dir(srv, tmp_path):
+    res = srv.export_markdown(path="exports/mine.md")
+    assert "error" not in res
+    expected = (tmp_path / "exports" / "mine.md").resolve()
+    assert Path(res["written"]) == expected
+    assert expected.exists()
