@@ -22,10 +22,10 @@ It produces a complete, runnable project — not a snippet. One invocation gives
 tested, ruff-clean MCP server skeleton that passes its own suite out of the box:
 
 ```text
-$ /scaffold-mcp   (→ scaffold.py --name book-tracker --domain book)
+$ /scaffold-mcp   (→ scaffold.py --name trip-logger --domain trip)
 
-book-tracker/
-├── src/booktracker/
+trip-logger/
+├── src/triplogger/
 │   ├── server.py      FastMCP server — dual stdio / HTTP transport
 │   ├── core.py        pure domain logic, no I/O — the part you replace
 │   ├── store.py       JSON-file persistence (the one I/O module)
@@ -105,6 +105,10 @@ claude-code-toolkit/
     catalog.md          the bug-class catalog (the shared brain)
     rules.json          grep-able rules the hook runs
     hook.py · test_hook.py
+  .github/workflows/
+    test.yml            CI — scaffolds + verifies a generated project end-to-end,
+                        tests the worked example (and drives its demo), runs the
+                        hook regression suite, validates manifests + frontmatter
   README.md · LICENSE
 ```
 
