@@ -35,7 +35,11 @@ def _edited_paths(data):
         p = ti.get("file_path")
         return [p] if p else []
     if tool == "MultiEdit":
-        return [e.get("file_path") for e in ti.get("edits", []) if e.get("file_path")]
+        # Real MultiEdit payloads carry ONE top-level file_path; the edits array
+        # holds old/new strings only. Read per-edit paths too, defensively.
+        paths = [ti.get("file_path")]
+        paths += [e.get("file_path") for e in ti.get("edits", [])]
+        return list(dict.fromkeys(p for p in paths if p))  # dedupe, keep order
     return []
 
 

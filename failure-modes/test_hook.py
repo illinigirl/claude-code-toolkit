@@ -70,8 +70,13 @@ def main():
         rc, out = run(json.dumps({"tool_name": "Edit", "tool_input": {"file_path": md}}))
         check("non-code .md -> silent", rc == 0 and not out)
 
+        # Real MultiEdit schema: one top-level file_path; edits hold old/new strings.
+        rc, out = run(json.dumps({"tool_name": "MultiEdit", "tool_input": {
+            "file_path": risky, "edits": [{"old_string": "a", "new_string": "b"}]}}))
+        check("MultiEdit (top-level path) -> warns", rc == 0 and fired(out))
+
         rc, out = run(json.dumps({"tool_name": "MultiEdit", "tool_input": {"edits": [{"file_path": risky}]}}))
-        check("MultiEdit (nested path) -> warns", rc == 0 and fired(out))
+        check("MultiEdit (nested path fallback) -> warns", rc == 0 and fired(out))
 
         rc, out = run(json.dumps({"tool_name": "Edit", "tool_input": {"file_path": os.path.join(d, "nope.ts")}}))
         check("missing file -> silent, no crash", rc == 0 and not out)
