@@ -57,7 +57,7 @@ the full picture for the report):
   tree = ast.parse(open(sys.argv[1]).read())
   tools = []
   for node in ast.walk(tree):
-      if isinstance(node, ast.FunctionDef):
+      if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
           for d in node.decorator_list:
               f = d.func if isinstance(d, ast.Call) else d
               if isinstance(f, ast.Attribute) and f.attr == "tool":
@@ -94,9 +94,9 @@ caveat (e.g. tests skipped offline, or undocumented tools). Example:
 <project> — MCP health check
   ✅ Install        deps resolved
   ✅ Lint (ruff)    All checks passed
-  ✅ Tests          28 passed, 0 failed
+  ✅ Tests          40 passed, 0 failed
   ✅ Smoke          server imports cleanly
-  ✅ Contract       15 tools, 15 documented
+  ✅ Contract       17 tools, 17 documented
   ──────────────────────────────────────────
   Verdict: GREEN — ready to demo / ship
 ```
@@ -105,12 +105,12 @@ On a failure, keep the same shape but put the **specific** cause under the ❌ l
 and add your read on the likely fix. Examples:
 
 ```
-  ❌ Tests          26 passed, 2 failed
+  ❌ Tests          38 passed, 2 failed
        test_top_genres_over_seed — expected Fantasy=4, got 3
        likely: a seed book's status or genre changed
 ```
 ```
-  ⚠️ Contract       15 tools, 13 documented
+  ⚠️ Contract       17 tools, 15 documented
        undocumented: mark_status, set_goal — add a docstring (Claude reads it)
 ```
 

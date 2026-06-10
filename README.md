@@ -35,7 +35,8 @@ book-tracker/
 ├── data/…seed.json    bundled seed, so it runs immediately
 ├── .github/workflows/ CI (pytest)
 ├── CLAUDE.md          orientation: architecture + where to extend
-└── pyproject.toml · requirements.txt · LICENSE · README.md
+├── setup.sh · preflight.sh   one-command venv setup + lint/test gate
+└── pyproject.toml · requirements.txt · .gitignore · LICENSE · README.md
 
 $ pytest -q      →  15 passed
 $ ruff check .   →  All checks passed!

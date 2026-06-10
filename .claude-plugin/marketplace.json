@@ -1,5 +1,4 @@
 {
-  "$schema": "https://json.schemastore.org/claude-code-marketplace-manifest.json",
   "name": "claude-code-toolkit",
   "owner": { "name": "Megan Schott" },
   "description": "Claude Code skills + a failure-mode hook: scaffold MCP servers, audit a repo for public release, write session handoffs, and catch classes of bugs before they ship.",

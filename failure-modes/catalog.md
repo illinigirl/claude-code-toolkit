@@ -87,13 +87,14 @@ Detectability tiers:
   this category.
 
 ## dispatch-order-coupling: Implicit coordination via dispatch order
-- **Detectability:** hook (flag-for-review)
+- **Detectability:** judgment
 - **Smell:** Multiple sources can fire for the same entity/event, and
   the *order they run* silently decides the outcome — coordinated by
   ad-hoc "skip if already handled" checks instead of an explicit rule.
-- **Signature:** `if .*(in|already).*: \s*continue` near dispatch/
-  send/notify code; multiple senders writing to the same target. Flag
-  for human confirmation — it's a smell, not a proof.
+- **Signature:** none — behavioral. (A skip-check like
+  `if already-handled: continue` near dispatch/send/notify code is a
+  hint, but confirming requires reasoning about which sources can fire
+  for the same target — a regex can't see that.)
 - **Verify:** Is there an explicit priority/resolver, or does behavior
   depend on which branch happens to run first?
 - **Fix pattern:** Explicit-priority **resolver**: each source

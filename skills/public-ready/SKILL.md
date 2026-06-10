@@ -2,7 +2,7 @@
 name: public-ready
 description: Audit a repo for public release and, on approval, publish it. Scans tracked files for secrets, PII, and interview/hiring/portfolio framing; verifies tests + lint are green; checks LICENSE / README / .gitignore / CI; then (only when you say so) runs gh repo create --public --push. Use when the user wants to make a repo public, open-source it, ship it, or run a pre-publish / public-readiness check.
 argument-hint: [path]
-allowed-tools: Bash(git *), Bash(gh *), Bash(grep *), Bash(rg *), Bash(ruff *), Bash(pytest *), Bash(npm *)
+allowed-tools: Bash(git:*), Bash(gh:*), Bash(grep:*), Bash(rg:*), Bash(ruff:*), Bash(pytest:*), Bash(npm:*)
 ---
 
 # Make a repo public-ready

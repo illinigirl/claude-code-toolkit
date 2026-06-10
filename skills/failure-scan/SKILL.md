@@ -21,7 +21,8 @@ Find and read `catalog.md`. Try, in order:
 
 Read the **whole** catalog so you have every class, its smell, its **Verify**
 questions, and its **Fix pattern**. If you genuinely can't find it, say so and
-fall back to the four seeded classes named in this skill's description.
+fall back to the judgment classes named in this skill's description, plus
+silent-data-growth (the grep-able seed class).
 
 ## 2. Decide what to review
 

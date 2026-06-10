@@ -25,6 +25,7 @@
 - setup / creds: <env-var NAMES and where they come from — never secret values>
 
 ## Working norms
-- I architect; you write the code.
+- <The collaboration norms in force this session, e.g. commit cadence,
+  who writes code, review expectations.>
 - Never commit or push without an explicit ask.
 - <Any project-specific gotchas to repeat.>
