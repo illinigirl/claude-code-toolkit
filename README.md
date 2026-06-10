@@ -9,6 +9,7 @@ room to grow into agents and MCP servers.
 | Skill | Command | What it does |
 |---|---|---|
 | [scaffold-mcp](skills/scaffold-mcp/) | `/scaffold-mcp` | Generate a new Python MCP server — a runnable, tested, ruff-clean skeleton in the pure-core + thin-adapters shape (FastMCP, dual stdio/HTTP transport, CLI adapter, one I/O module, bundled seed, tests, CI, CLAUDE.md, pyproject). |
+| [verify-mcp](skills/verify-mcp/) | `/verify-mcp` | Health-check an MCP server: venv + ruff + pytest, import the server to prove its tools register, inventory the `@mcp.tool()` surface (count + missing docstrings — the contract Claude reads), then report a GREEN/RED verdict with the specific cause on failure. Scaffold builds it; verify proves it. |
 | [public-ready](skills/public-ready/) | `/public-ready` | Audit a repo for public release — scan tracked files for secrets, PII, and interview/portfolio framing; verify tests + lint are green; check LICENSE / README / .gitignore / CI — then publish (`gh repo create`) on your approval. |
 | [handoff](skills/handoff/) | `/handoff` | Write a `PICKUP-*.md` session handoff (task, what's done, what's in flight, next steps, key paths, working norms) so a fresh session resumes cold. Stays local, never committed. |
 | [failure-scan](skills/failure-scan/) | `/failure-scan` | Review the current diff against the failure-mode catalog — the judgment classes a hook can't catch (plausible-but-wrong AI output, biased per-segment stats, dispatch-order coupling) — reporting concrete risks with each class's verify questions and fix pattern. |
@@ -91,6 +92,7 @@ claude-code-toolkit/
     plugin.json         the plugin manifest
   skills/
     scaffold-mcp/       SKILL.md · reference.md · scaffold.py · templates/
+    verify-mcp/         SKILL.md — health-check an MCP server (GREEN/RED verdict)
     public-ready/       SKILL.md · audit.sh
     handoff/            SKILL.md · template.md
     failure-scan/       SKILL.md — review a diff against the catalog
