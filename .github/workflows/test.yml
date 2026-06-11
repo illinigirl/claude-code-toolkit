@@ -67,6 +67,8 @@ jobs:
           python-version: "3.12"
       - name: Hook regression test
         run: python3 failure-modes/test_hook.py
+      - name: Context-alert hook regression test
+        run: python3 context-alert/test_hook.py
       - name: Manifests are valid JSON
         run: |
           python3 -m json.tool .claude-plugin/plugin.json     > /dev/null

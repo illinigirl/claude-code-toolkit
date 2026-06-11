@@ -1,8 +1,8 @@
 # claude-code-toolkit
 
 A small toolkit of [Claude Code](https://code.claude.com) skills, distributed as
-an installable **plugin marketplace**. Skills and a failure-mode hook today;
-room to grow into agents and MCP servers.
+an installable **plugin marketplace**. Skills plus two hooks today (failure-mode
+flagging and a context-threshold alert); room to grow into agents and MCP servers.
 
 ## Skills
 
@@ -63,6 +63,36 @@ Add a class once to `catalog.md`, tagged `hook` (gets a grep rule in
 `rules.json`) or `judgment` (reviewed by the skill). `failure-modes/test_hook.py`
 keeps the hook honest.
 
+## Context-alert hook
+
+Long sessions die ugly: context fills mid-task and auto-compact decides what
+survives. This hook (auto-registered on install) alerts **while there's still
+room to checkpoint on your terms** — pairing naturally with `/handoff`.
+
+It fires on every tool call and prompt submit, reading the **actual token
+`usage`** the API reported on the session's latest main-chain assistant message
+(exact, lagging at most one call — unlike transcript-file-size heuristics,
+which only ever grow and never recover after a compact). When usage crosses a
+threshold it does three things once per crossing:
+
+1. **OS notification** (`cmux` if installed, else macOS `osascript`) — so the
+   alert lands even when the terminal isn't focused.
+2. **In-terminal warning** via `systemMessage`.
+3. **Tells Claude** (via `additionalContext`) to offer you the option of
+   running the handoff skill at the next natural pause — accept and you get a
+   PICKUP file; decline and the session continues normally.
+
+Thresholds re-arm when usage drops back down (i.e. after a compact), so a
+multi-day session can alert again on the next climb. Configure via env (e.g.
+in `settings.json` `"env"`):
+
+```jsonc
+"CONTEXT_ALERT_THRESHOLDS": "75",     // comma-separated %, default "75"
+"CONTEXT_ALERT_WINDOW": "1000000"     // tokens; default 200000 — set 1M for [1m] models
+```
+
+`context-alert/test_hook.py` keeps it honest.
+
 ## Install (as a plugin)
 
 ```text
@@ -100,11 +130,13 @@ claude-code-toolkit/
     design-note/        SKILL.md — write a <feature>-DESIGN.md
     note/               SKILL.md — frictionless note-to-self capture
   hooks/
-    hooks.json          registers the failure-mode PostToolUse hook
+    hooks.json          registers the failure-mode + context-alert hooks
   failure-modes/
     catalog.md          the bug-class catalog (the shared brain)
     rules.json          grep-able rules the hook runs
     hook.py · test_hook.py
+  context-alert/
+    hook.py · test_hook.py   context-threshold alert -> offers /handoff
   .github/workflows/
     test.yml            CI — scaffolds + verifies a generated project end-to-end,
                         tests the worked example (and drives its demo), runs the
