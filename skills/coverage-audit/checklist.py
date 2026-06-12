@@ -30,6 +30,10 @@ DIMENSIONS = [
     "time",
     "adapters",
     "cant-fail",
+    # Every dark line accounted for: covered, deleted, pragma-excluded with
+    # a reason, or on the accepted-residuals ledger. The gap between raw and
+    # protected coverage is exactly the lines this dimension forbids.
+    "residuals",
 ]
 
 LINE_RE = re.compile(

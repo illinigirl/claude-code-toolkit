@@ -81,6 +81,35 @@ Cite `file:line` for every finding.
   assert, asserts on the stub instead of the code. A test that has never
   been red protects nothing.
 
+## 3b. Raw vs PROTECTED coverage — account for every dark line
+
+The raw percentage is a detector reading, not the deliverable. The audit's
+real question is: **is any dark line unaccounted for?** Sort every uncovered
+line into exactly one bucket:
+
+1. **Needs a test** → it's a finding (sections above).
+2. **Dead code** → recommend deletion (dark because unreachable is a
+   different disease than dark because untested).
+3. **Structurally untestable by design** (transport binding, `__main__`
+   guards, glue around a framework call) → recommend `# pragma: no cover`
+   **with a reason on the same line or the line above** — coverage.py
+   excludes it natively, so the raw number stops lying about it. A pragma
+   WITHOUT a reason is itself a finding: grep `pragma: no cover` and flag
+   any bare ones (pragmas are how inconvenient code gets swept under rugs).
+4. **Accepted for now** (low-value formatting, revisit-later) → an entry in
+   the report's **Accepted residuals ledger**: file, lines, count, reason.
+
+Then report BOTH numbers, inline and in the file:
+
+> raw 94% · **protected 100%** — every dark line excluded-with-reason or
+> on the ledger (N lines: see Accepted residuals)
+
+Protected coverage = (covered + pragma-excluded + ledgered) / total. When
+protected < 100%, the difference IS the unaccounted dark — name those lines;
+they're the most urgent finding in the report. A GREEN verdict requires
+protected = 100%; raw may be anything, because an honest 93% with a full
+ledger beats a gamed 100%.
+
 ## 4. Rank by silent-failure risk
 
 Order findings by **how quietly the failure ships**, not by coverage points:
@@ -115,9 +144,16 @@ it to `.gitignore` if the user doesn't want audits committed.)
 - [x] time: <...>
 - [x] adapters: <...>
 - [x] cant-fail: <...>
+- [x] residuals: <"all dark lines accounted for — N pragma-excluded, M ledgered", or the unaccounted lines as a finding>
+
+## Coverage
+raw NN% · protected NN% (see Accepted residuals)
 
 ## Per-module coverage
 | module | stmts | line cov | tests touching it |
+
+## Accepted residuals
+| file | lines | count | reason |
 
 ## Verdict: GREEN / AMBER / RED
 - GREEN: no checklist dimension is dark on a relied-upon path; adapters have
@@ -156,8 +192,8 @@ ships with this skill against the report you just wrote:
 python3 <this-skill-dir>/checklist.py <report-file>
 ```
 
-- It fails unless ALL seven dimensions (`empty boundary error scale time
-  adapters cant-fail`) appear as annotated `- [x] dim: ...` lines.
+- It fails unless ALL eight dimensions (`empty boundary error scale time
+  adapters cant-fail residuals`) appear as annotated `- [x] dim: ...` lines.
 - If it fails, the audit is NOT done: go back to step 3, check the missing
   dimension for real, annotate the line, and re-run the validator.
 - Include the validator's one-line output at the bottom of your summary to

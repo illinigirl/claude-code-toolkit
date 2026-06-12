@@ -120,11 +120,16 @@ fail).
     silent, debounced per distinct state (re-arms after a refresh or new
     drift).
 - **`/coverage-audit`** is the judgment half: run real line coverage, read the
-  misses against the seven-dimension checklist, rank findings by *how quietly
-  the failure would ship*, and name the cheapest high-value tests to add.
+  misses against the eight-dimension checklist, rank findings by *how quietly
+  the failure would ship*, and name the cheapest high-value tests to add. It
+  reports **two numbers — raw and protected coverage**: every dark line must
+  be covered, deleted, `pragma: no cover`-excluded *with a reason*, or on an
+  accepted-residuals ledger. Protected = 100% is the GREEN bar; raw never
+  needs to be, because an honest 94% with a full ledger beats a gamed 100%.
   The audit must then prove **its own** completeness: `checklist.py` parses
-  the report and fails unless every dimension was explicitly checked —
-  "not mentioned" can't masquerade as "checked and clean."
+  the report and fails unless every dimension (including `residuals`) was
+  explicitly checked — "not mentioned" can't masquerade as "checked and
+  clean."
 
 `coverage-nudge/test_hook.py` and `skills/coverage-audit/test_checklist.py`
 keep both halves honest.

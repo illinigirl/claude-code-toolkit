@@ -24,6 +24,7 @@ COMPLETE = """# Coverage audit: demo
 - [x] time: clock injected everywhere; no direct reads
 - [x] adapters: CLI at 0% — finding #1
 - [x] cant-fail: hasattr registration test — finding #3
+- [x] residuals: all dark lines accounted for — 2 pragma-excluded, 5 ledgered
 """
 
 MISSING_TWO = """# Coverage audit: demo
