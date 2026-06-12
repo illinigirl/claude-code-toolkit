@@ -44,8 +44,8 @@ def git(repo, *args):
     )
 
 
-def make_repo(tmp, with_tests=True):
-    repo = os.path.join(tmp, "repo")
+def make_repo(tmp, with_tests=True, name="repo"):
+    repo = os.path.join(tmp, name)
     os.makedirs(os.path.join(repo, "src"))
     git(repo, "init", "-q")
     git(repo, "config", "user.email", "t@example.com")
@@ -225,6 +225,55 @@ def main():
         repo = make_repo(tmp)
         code, out = run({"cwd": repo})
         check("silent on a clean tree", code == 0 and not out)
+
+    # ── Parent-of-repos sessions (cwd not a repo, projects one level down) ──
+
+    # 18. Child repo with a stale report -> nudge fires, prefixed with the
+    #     repo name so the message says WHICH project drifted.
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = make_repo(tmp)
+        add_report(repo, mtime=now - 3600)  # initial commit is newer
+        code, out = run({"cwd": tmp})
+        check("parent: stale child fires with repo-name prefix",
+              code == 0 and "repo: coverage audit stale" in out)
+
+    # 19. Child repo with NO report + source-only uncommitted change ->
+    #     silent. The asymmetry check never crosses into children: the
+    #     report file is the opt-in, and a parent session must not nag
+    #     about a repo it never touched.
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = make_repo(tmp)
+        touch(repo, "src/foo.py", "# drift\n")
+        code, out = run({"cwd": tmp})
+        check("parent: no asymmetry nudge for un-opted-in children",
+              code == 0 and not out)
+
+    # 20. Child repo with a fresh report -> silent.
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = make_repo(tmp)
+        add_report(repo, mtime=now + 100)
+        code, out = run({"cwd": tmp})
+        check("parent: silent when the child report is fresh",
+              code == 0 and not out)
+
+    # 21. SessionStart with a stale child report -> additionalContext
+    #     naming the repo, so Claude knows where to run the audit.
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = make_repo(tmp)
+        add_report(repo, mtime=now - 3600)
+        code, out = run({"cwd": tmp, "hook_event_name": "SessionStart"})
+        check("parent: SessionStart instructs Claude with repo name",
+              code == 0 and "additionalContext" in out and "repo" in out)
+
+    # 22. Two stale children -> one merged message naming both.
+    with tempfile.TemporaryDirectory() as tmp:
+        a = make_repo(tmp, name="alpha")
+        b = make_repo(tmp, name="beta")
+        add_report(a, mtime=now - 3600)
+        add_report(b, mtime=now - 3600)
+        code, out = run({"cwd": tmp})
+        check("parent: merges nudges across stale children",
+              code == 0 and "alpha:" in out and "beta:" in out)
 
     if failures:
         print(f"\n{len(failures)} failure(s): {failures}")

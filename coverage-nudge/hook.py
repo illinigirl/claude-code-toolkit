@@ -11,6 +11,14 @@ Opt-in per repo: staleness tracking keys off COVERAGE-AUDIT.md, the report
 /coverage-audit writes. Run the audit once by hand and the automation takes
 over; repos with no report fall back to the simpler asymmetry check.
 
+Parent-of-repos sessions: when the session cwd is NOT a git repo (e.g. a
+~/dev directory with projects one level down), the hook checks immediate
+child directories that are git repos — but ONLY those with a
+COVERAGE-AUDIT.md. The asymmetry fallback never applies across children:
+a parent session must not nag about uncommitted work in a repo it never
+touched, so child checking is strictly opt-in via the report file.
+Messages from child repos are prefixed with the repo name.
+
 Stop (mid-session watcher; emits a user-facing systemMessage):
   - Repo HAS a COVERAGE-AUDIT.md: nudge when any source file changed after
     the report was written (committed or not, whether or not tests also
@@ -160,56 +168,64 @@ def _emit(payload):
     sys.exit(0)
 
 
-def _handle_stop(root):
+def _handle_stop(root, label="", child_mode=False):
+    """Return a payload dict to emit, or None to stay silent."""
     report = os.path.join(root, REPORT_NAME)
     if os.path.exists(report):
         mtime = os.path.getmtime(report)
         stale = _stale_sources(root, mtime)
         if not stale:
-            sys.exit(0)
+            return None
         if _already_nudged(root, "stale", [str(int(mtime)), *stale]):
-            sys.exit(0)
-        _emit({
+            return None
+        return {
             "systemMessage": (
-                f"🧪 coverage audit stale: {len(stale)} source file(s) "
+                f"🧪 {label}coverage audit stale: {len(stale)} source file(s) "
                 f"changed since the last audit ({_names(stale)}). "
                 "Run /coverage-audit to refresh."
             )
-        })
+        }
 
-    # No report yet — fall back to the asymmetry check.
+    # No report yet — fall back to the asymmetry check. Never across
+    # children: a parent session must not nag about uncommitted work in
+    # a repo it never touched (the report file is the opt-in).
+    if child_mode:
+        return None
     changed = _changed_paths(root)
     if not changed:
-        sys.exit(0)
+        return None
     src_changed = [p for p in changed if _is_source_path(p)]
     test_changed = [p for p in changed if _is_test_path(p)]
     if not src_changed or test_changed:
-        sys.exit(0)
+        return None
     if not _repo_has_tests(root):
-        sys.exit(0)
+        return None
     if _already_nudged(root, "asym", src_changed):
-        sys.exit(0)
-    _emit({
+        return None
+    return {
         "systemMessage": (
-            f"🧪 coverage nudge: {len(src_changed)} source file(s) changed "
-            f"with no test changes ({_names(src_changed)}). If this lands "
-            "behavior, consider /coverage-audit to check the negative space."
+            f"🧪 {label}coverage nudge: {len(src_changed)} source file(s) "
+            f"changed with no test changes ({_names(src_changed)}). If this "
+            "lands behavior, consider /coverage-audit to check the negative "
+            "space."
         )
-    })
+    }
 
 
-def _handle_session_start(root):
+def _handle_session_start(root, label="", child_mode=False):
+    """Return a payload dict to emit, or None to stay silent."""
     report = os.path.join(root, REPORT_NAME)
     if not os.path.exists(report):
-        sys.exit(0)  # no opt-in audit yet — stay quiet
+        return None  # no opt-in audit yet — stay quiet
     stale = _stale_sources(root, os.path.getmtime(report))
     if not stale:
-        sys.exit(0)
-    _emit({
+        return None
+    where = f"{label.rstrip(': ')} repo's" if label else "This repo's"
+    return {
         "hookSpecificOutput": {
             "hookEventName": "SessionStart",
             "additionalContext": (
-                f"This repo's {REPORT_NAME} is STALE: {len(stale)} source "
+                f"{where} {REPORT_NAME} is STALE: {len(stale)} source "
                 f"file(s) changed since it was written ({_names(stale)}). "
                 "Run /coverage-audit at the first natural point in this "
                 "session — before calling any new work ship-ready — unless "
@@ -218,10 +234,61 @@ def _handle_session_start(root):
             ),
         },
         "systemMessage": (
-            f"🧪 coverage audit stale ({len(stale)} source change(s) since "
-            "last report) — Claude has been asked to refresh it this session."
+            f"🧪 {label}coverage audit stale ({len(stale)} source change(s) "
+            "since last report) — Claude has been asked to refresh it this "
+            "session."
         ),
-    })
+    }
+
+
+_MAX_CHILD_SCAN = 50  # bound directory listing on huge parent dirs
+
+
+def _candidate_roots(cwd):
+    """Repos to check, as (root, label, child_mode) tuples.
+
+    cwd inside a repo → that repo, unlabeled (original behavior). cwd
+    NOT a repo → immediate child dirs that are git repos AND have a
+    COVERAGE-AUDIT.md (opt-in), labeled with the repo name so a nudge
+    says which project it's about."""
+    root = _git(["rev-parse", "--show-toplevel"], cwd)
+    if root:
+        return [(root.strip(), "", False)]
+    try:
+        entries = sorted(os.listdir(cwd))
+    except OSError:
+        return []
+    roots = []
+    for name in entries[:_MAX_CHILD_SCAN]:
+        child = os.path.join(cwd, name)
+        if not os.path.isdir(os.path.join(child, ".git")):
+            continue
+        if not os.path.exists(os.path.join(child, REPORT_NAME)):
+            continue
+        roots.append((child, f"{name}: ", True))
+    return roots
+
+
+def _merge(payloads):
+    """Combine per-repo payloads into one hook response."""
+    payloads = [p for p in payloads if p]
+    if not payloads:
+        return None
+    merged = {}
+    messages = [p["systemMessage"] for p in payloads if p.get("systemMessage")]
+    if messages:
+        merged["systemMessage"] = "\n".join(messages)
+    contexts = [
+        p["hookSpecificOutput"]["additionalContext"]
+        for p in payloads
+        if p.get("hookSpecificOutput")
+    ]
+    if contexts:
+        merged["hookSpecificOutput"] = {
+            "hookEventName": "SessionStart",
+            "additionalContext": "\n\n".join(contexts),
+        }
+    return merged
 
 
 def main():
@@ -230,16 +297,17 @@ def main():
         sys.exit(0)
     cwd = data.get("cwd") or os.getcwd()
 
-    root = _git(["rev-parse", "--show-toplevel"], cwd)
-    if not root:
-        sys.exit(0)  # not a git repo — nothing to say
-    root = root.strip()
+    roots = _candidate_roots(cwd)
+    if not roots:
+        sys.exit(0)  # no repo, no opted-in children — nothing to say
 
     event = data.get("hook_event_name", "Stop")
-    if event == "SessionStart":
-        _handle_session_start(root)
-    else:
-        _handle_stop(root)
+    handler = _handle_session_start if event == "SessionStart" else _handle_stop
+    merged = _merge(
+        [handler(root, label, child_mode) for root, label, child_mode in roots]
+    )
+    if merged:
+        _emit(merged)
     sys.exit(0)
 
 
