@@ -225,6 +225,12 @@ def update_book(book_id: str, changes: dict) -> bool:
     return True
 
 
+def _today_iso() -> str:
+    """The store's one clock read, factored out as a seam so tests can pin it
+    (monkeypatch this) instead of asserting against a runtime date.today()."""
+    return date.today().isoformat()
+
+
 def mark_status(book_id: str, status: str, finished: str | None = None) -> bool:
     """Move a book between to-read / reading / read — the common 'I finished it'
     edit, still one update_book overlay underneath. Marking a book "read" also
@@ -241,7 +247,7 @@ def mark_status(book_id: str, status: str, finished: str | None = None) -> bool:
         if current is None:
             return False
         if current.finished is None:
-            changes["finished"] = finished or date.today().isoformat()
+            changes["finished"] = finished or _today_iso()
     return update_book(book_id, changes)
 
 

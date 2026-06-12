@@ -31,6 +31,13 @@ mcp = FastMCP("book-tracker")
 _GROUP_BY = ("status", "genre", "author", "year")
 
 
+def _today() -> date:
+    """The adapter's one clock read, factored out as a seam so tests can pin
+    it (monkeypatch this) — keeps date-dependent tool behavior testable
+    without leaking a `today` parameter into the tool contract."""
+    return date.today()
+
+
 # ── Ingest (persist state — the cross-session memory plain Claude lacks) ──
 
 @mcp.tool()
@@ -212,7 +219,7 @@ def pace_to_goal(year: int | None = None) -> dict:
     goal = store.get_goal(year)
     if goal is None:
         return {"error": f"no goal set for {year}", "year": year}
-    today = date.today()
+    today = _today()
     as_of_month = today.month if year == today.year else 12
     g = core.pace_to_goal(books, goal=goal, year=year, as_of_month=as_of_month)
     return {"year": g.year, "goal": g.goal, "read": g.read, "remaining": g.remaining,
@@ -250,7 +257,7 @@ def export_markdown(path: str | None = None, format: str = "markdown",
         content, ext = render_grouped_markdown(books, title, group_by), "md"
     try:
         out = (store.resolve_export_path(path) if path
-               else store.export_default_path(date.today().isoformat(), ext=ext))
+               else store.export_default_path(_today().isoformat(), ext=ext))
     except ValueError as e:
         return {"error": str(e), "path": path}
     out.parent.mkdir(parents=True, exist_ok=True)

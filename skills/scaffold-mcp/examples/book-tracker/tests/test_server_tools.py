@@ -99,8 +99,17 @@ def test_mark_status_overlays_a_seed_book(srv):
     assert s["read"] == 12
 
 
-def test_mark_status_read_stamps_finished_and_feeds_the_goal(srv):
+def test_mark_status_read_stamps_finished_and_feeds_the_goal(srv, monkeypatch):
     from datetime import date
+
+    import booktracker.store as store
+
+    # Pin the clock at both seams: asserting against a runtime date.today()
+    # made this test flake across midnight (and year-boundary) runs.
+    pinned = date(2026, 6, 12)
+    monkeypatch.setattr(store, "_today_iso", lambda: pinned.isoformat())
+    monkeypatch.setattr(srv, "_today", lambda: pinned)
+
     # the-two-towers ships as "reading" with no finish date. Finishing it must
     # stamp the date — without one the book never appears in books_by_month,
     # latest_finished_year, or pace_to_goal, so "I finished it" wouldn't
@@ -108,9 +117,11 @@ def test_mark_status_read_stamps_finished_and_feeds_the_goal(srv):
     assert srv.mark_status("the-two-towers", "read")["updated"] is True
     book = next(b for b in srv.find_books(status="read")["books"]
                 if b["id"] == "the-two-towers")
-    assert book["finished"] == date.today().isoformat()
-    srv.set_goal(date.today().year, 5)
-    assert srv.pace_to_goal(date.today().year)["read"] == 1
+    assert book["finished"] == "2026-06-12"
+    srv.set_goal(2026, 5)
+    result = srv.pace_to_goal(2026)
+    assert result["read"] == 1
+    assert result["as_of_month"] == 6  # pinned month, deterministic forever
 
 
 def test_mark_status_read_accepts_an_explicit_date(srv):
@@ -330,3 +341,59 @@ def test_export_records_metadata_not_content(srv, tmp_path):
     assert set(exports[0]) == {"title", "path"}
     assert exports[0]["path"] == first["written"]
     assert all("content" not in e for e in exports)
+
+
+# ── Audit round 2 (gaps 7 + the uncovered tool error returns) ─────────
+
+def test_rating_validated_at_the_boundaries(srv):
+    """1–5 is the contract: both edges in, both first values out. The original
+    suite only probed far outside the range (99)."""
+    assert srv.add_book("Zero Star", "A. Author", rating=0)["added"] is False
+    assert srv.add_book("Six Star", "A. Author", rating=6)["added"] is False
+    assert srv.add_book("One Star", "A. Author", rating=1)["added"] is True
+    assert srv.add_book("Five Star", "A. Author", rating=5)["added"] is True
+
+
+def test_add_book_requires_a_title(srv):
+    r = srv.add_book("", "Anon")
+    assert r["added"] is False and "title is required" in r["error"]
+
+
+def test_pace_to_goal_error_paths(srv):
+    # A year with no goal set: error names the year.
+    r = srv.pace_to_goal(year=1999)
+    assert "no goal set" in r["error"] and r["year"] == 1999
+    # No finished books at all (seed hidden, nothing added).
+    srv.use_sample_library(False)
+    assert srv.pace_to_goal()["error"] == "no finished books yet"
+
+
+def test_update_book_coerces_numeric_string_pages(srv):
+    # The CSV/photo ingest path can hand numbers over as strings; the store
+    # coerces rather than persisting a stringly-typed field.
+    assert srv.update_book("dune", pages="500")["updated"] is True
+    assert srv.find_books(author="Herbert")["books"][0]["pages"] == 500
+
+
+def test_mark_status_rejects_invalid_status(srv):
+    assert srv.mark_status("dune", "abandoned")["updated"] is False
+
+
+def test_add_books_rejects_non_numeric_rating(srv):
+    res = srv.add_books([{"title": "Weird Rating", "author": "X", "rating": "five"}])
+    assert res["added"] == []
+    assert "rating must be a number" in res["skipped_invalid"][0]["error"]
+
+
+def test_seed_override_env_swaps_the_library(srv, tmp_path, monkeypatch):
+    # BOOKTRACKER_SEED points the read-only seed at a custom file — the demo
+    # escape hatch for bringing your own library.
+    import json as _json
+
+    alt = tmp_path / "alt-seed.json"
+    alt.write_text(_json.dumps({"books": [{
+        "id": "only-book", "title": "Only Book", "author": "Solo",
+        "genre": "Fantasy", "status": "read", "rating": 5, "pages": 100,
+        "finished": "2024-01-01"}], "goals": {}}))
+    monkeypatch.setenv("BOOKTRACKER_SEED", str(alt))
+    assert [b["title"] for b in srv.find_books()["books"]] == ["Only Book"]

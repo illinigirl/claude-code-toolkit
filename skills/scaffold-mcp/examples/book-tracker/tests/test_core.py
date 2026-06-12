@@ -124,3 +124,54 @@ def test_parse_goodreads_csv(goodreads_csv):
     assert piranesi["rating"] is None       # My Rating 0 → unrated
     assert piranesi["status"] == "to-read"
     assert piranesi["finished"] is None
+
+
+# ── Audit round 2 (gap 3: importer beyond the happy path; empty states) ──
+
+MESSY_CSV = """Title,Author,My Rating,Number of Pages,Exclusive Shelf,Date Read,Bookshelves
+Good Book,A. Author,4,300,read,2024/05/10,fantasy
+No Date Book,B. Author,0,abc,read,sometime in May,
+,Ghost Writer,5,100,read,2024/01/01,sci-fi
+Shelfless,C. Author,3,,currently-reading,,
+"""
+
+
+def test_goodreads_import_survives_messy_rows():
+    """Real exports are messy: the empty-title row is skipped, an unparseable
+    date becomes None (not a crash), '0' rating means unrated, non-numeric
+    pages become 0, and no usable shelf falls back to 'Uncategorized'."""
+    rows = core.parse_goodreads_csv(MESSY_CSV)
+
+    assert [r["title"] for r in rows] == ["Good Book", "No Date Book", "Shelfless"]
+
+    good, no_date, shelfless = rows
+    assert good["genre"] == "Fantasy" and good["finished"] == "2024-05-10"
+    assert no_date["finished"] is None        # "sometime in May" → None, no crash
+    assert no_date["rating"] is None          # Goodreads 0 = unrated
+    assert no_date["pages"] == 0              # "abc" → 0
+    assert no_date["genre"] == "Uncategorized"
+    assert shelfless["genre"] == "Uncategorized"
+    assert shelfless["status"] == "reading"
+
+
+def test_goodreads_import_of_headerless_csv_yields_nothing():
+    """No Title column → every row is skipped; {parsed: 0} is the contract,
+    not an exception."""
+    assert core.parse_goodreads_csv("just,some,data\nrow2,x,y\n") == []
+    assert core.parse_goodreads_csv("") == []
+
+
+def test_summary_and_rankings_of_empty_library():
+    s = core.reading_summary([])
+    assert (s.total, s.read, s.reading, s.to_read) == (0, 0, 0, 0)
+    assert s.avg_rating == 0.0 and s.pages_read == 0
+    assert core.top_genres([]) == []
+    assert core.top_authors([]) == []
+    assert core.books_by_month([]) == []
+
+
+def test_pace_clamps_as_of_month_at_both_edges(books):
+    g_low = core.pace_to_goal(books, goal=10, year=2024, as_of_month=0)
+    g_high = core.pace_to_goal(books, goal=10, year=2024, as_of_month=13)
+    assert g_low.as_of_month == 1
+    assert g_high.as_of_month == 12

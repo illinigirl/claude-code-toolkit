@@ -203,11 +203,6 @@ def pace_to_goal(books: list[Book], goal: int, year: int, as_of_month: int) -> G
     )
 
 
-def book_index(books: list[Book]) -> dict[str, Book]:
-    """id → Book, for cheap lookup by the adapters."""
-    return {b.id: b for b in books}
-
-
 def _norm_date(raw: str) -> str | None:
     """Goodreads writes dates as YYYY/MM/DD; normalize to ISO YYYY-MM-DD."""
     raw = (raw or "").strip()
