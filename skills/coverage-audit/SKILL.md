@@ -165,3 +165,19 @@ python3 <this-skill-dir>/checklist.py <report-file>
 
 "Checked — none found" is a perfectly good annotation; an absent line is
 not. The difference between those two is the entire point of this step.
+
+## 7. Deliver the findings INLINE (the file is not the deliverable)
+
+The report file serves the automation (the hook reads its mtime) and the
+record; **the conversation serves the human.** End every audit by presenting
+inline, in chat:
+
+- the verdict and the one-sentence reason for it,
+- the top gaps ranked by silent-failure risk (with file:line),
+- the cheapest high-value additions, phrased so the user can say "do 1 and
+  3" and hand the work straight back,
+- the validator's green line.
+
+The user should never have to open COVERAGE-AUDIT.md to learn what the audit
+found. If the inline summary and the file ever disagree, the file is wrong —
+fix it.
