@@ -255,7 +255,7 @@ def export_markdown(path: str | None = None, format: str = "markdown",
         return {"error": str(e), "path": path}
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(content)
-    store.record_export(title, content)
+    store.record_export(title, str(out))
     return {"written": str(out), "format": format, "group_by": group_by, "content": content}
 
 

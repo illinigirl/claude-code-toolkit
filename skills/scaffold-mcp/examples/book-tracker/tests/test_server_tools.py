@@ -282,3 +282,51 @@ def test_export_relative_path_lands_in_data_dir(srv, tmp_path):
     expected = (tmp_path / "exports" / "mine.md").resolve()
     assert Path(res["written"]) == expected
     assert expected.exists()
+
+
+# ── Audit-driven additions (2026-06-12 coverage audit, gaps 1/2/4) ────
+
+def test_rating_by_genre_tool_wrapper(srv):
+    """The wrapper itself, not just its core math — a typo'd response key
+    would ship green while the live tool surface broke."""
+    rows = srv.rating_by_genre()["genres"]
+    assert rows and {"genre", "count", "avg_rating"} <= set(rows[0])
+
+
+def test_top_authors_tool_wrapper(srv):
+    rows = srv.top_authors()["authors"]
+    assert rows and {"author", "count"} <= set(rows[0])
+
+
+def test_books_by_month_tool_wrapper(srv):
+    rows = srv.books_by_month()["months"]
+    assert rows and {"month", "count"} <= set(rows[0])
+
+
+def test_corrupt_state_fails_soft_and_preserves_the_file(srv, tmp_path):
+    """A truncated state.json must not brick every tool, and must not be
+    silently destroyed: it's moved aside to state.json.corrupt and tools
+    continue on fresh state."""
+    garbage = '{"books": [TRUNCATED'
+    (tmp_path / "state.json").write_text(garbage)
+
+    summary = srv.reading_summary()  # any tool: must not raise
+    assert summary["total"] > 0  # seed library still served
+
+    corrupt = tmp_path / "state.json.corrupt"
+    assert corrupt.exists() and corrupt.read_text() == garbage
+
+
+def test_export_records_metadata_not_content(srv, tmp_path):
+    """record_export logs {title, path} only — storing rendered content grew
+    state.json without bound on every export (nothing ever read it back)."""
+    import json as _json
+
+    first = srv.export_markdown()
+    srv.export_markdown(group_by="genre")
+    exports = _json.loads((tmp_path / "state.json").read_text())["exports"]
+
+    assert len(exports) == 2
+    assert set(exports[0]) == {"title", "path"}
+    assert exports[0]["path"] == first["written"]
+    assert all("content" not in e for e in exports)

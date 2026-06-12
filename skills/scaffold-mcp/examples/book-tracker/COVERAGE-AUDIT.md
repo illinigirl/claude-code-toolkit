@@ -1,85 +1,76 @@
 # Coverage audit: book-tracker
 
-Audited 2026-06-12 · 49 tests, all passing (0.84s) · line coverage via local
+Audited 2026-06-12 · 60 tests, all passing (0.93s) · line coverage via local
 `.venv` (pytest-cov) · no evals/paid-API suites present (cost guard: n/a).
+**Re-audit after closing gaps 1, 2, 4, 5 from the same-day first audit**
+(directed by Megan; original findings preserved below for the record).
 
 ## Checklist
-- [x] empty: zero-state covered only indirectly — `use_sample_library(False)` exercises an empty library once; no direct `reading_summary([])` / `top_genres([])` / fresh-store asserts. Minor.
-- [x] boundary: rating bounds tested far from the edge (99), never at 0/1/5/6 — `models.py:33` executes but the boundary values themselves are unpinned. `as_of_month` clamp unexercised.
-- [x] error: findings #2, #3, #5 — corrupt `state.json` is unhandled AND untested; importer malformed-row branches (`core.py:220,238,260`) and tool-boundary error returns (`server.py:54,211,214`; `store.py:229`) written but never executed.
-- [x] scale: no pagination loops (in-memory by design, documented as an expiring contract in CLAUDE.md) — but `record_export` (`store.py:302-304`) appends full report content to `state.json` forever: unbounded growth, no cap, no test. Finding #4.
-- [x] time: core is exemplary (`as_of_month` injected). Adapter defaults read the clock directly (`store.py:236`, `server.py:215,253`, `cli.py:61,146`) and the mark-status test computes `date.today()` at runtime — midnight-flaky. Finding #6.
-- [x] adapters: `cli.py` 0% (154 stmts — the documented no-MCP demo path), and three server tool wrappers never invoked (`server.py:175,182,190`). Findings #1 (wrappers) and #5 (CLI).
-- [x] cant-fail: `tests/test_server_imports.py:21` checks `hasattr(server, name)` — passes even with the `@mcp.tool()` decorator deleted, since the bare function remains a module attribute. The suite's only registration guard cannot go red. Finding #1.
+- [x] empty: zero-state covered only indirectly — `use_sample_library(False)` exercises an empty library once; no direct `reading_summary([])` / `top_genres([])` asserts. Minor, unchanged.
+- [x] boundary: rating bounds still tested far from the edge (99, plus the new CLI exit test), never at 0/1/5/6 — `models.py:33` executes but the boundary values are unpinned. Open (gap 7).
+- [x] error: corrupt `state.json` now fails soft (moved aside to `.json.corrupt`, library preserved) and is TESTED. Importer malformed-row branches (`core.py:220,238,260`) remain dark — open (gap 3). Tool-boundary error returns `server.py:54,211,214` still unexercised (minor).
+- [x] scale: `record_export` now logs `{title, path}` metadata only — the unbounded content-append is gone and the new shape is pinned by test. No pagination loops (in-memory by design, documented expiring contract).
+- [x] time: core exemplary (`as_of_month` injected). Adapter clock reads remain (`store.py:~240`, `server.py:215,253`, `cli.py:61,146`) and the mark-status test still computes `date.today()` at runtime — open (gap 6).
+- [x] adapters: CLI 0% → **73%** via 6 smoke tests (`tests/test_cli.py`) covering summary, top-genres, add→list round-trip, invalid-rating exit, import, export. The three previously-uninvoked tool wrappers now have in-process tests. Remaining CLI dark lines are per-command print formatting (pace, by-month, edit/delete/samples) — acceptable.
+- [x] cant-fail: FIXED — registration is now asserted against `mcp.list_tools()` (names + docstrings), and was **proven red** with a decorator removed, then green restored. No other can't-fail patterns found in the suite.
 
 ## Per-module coverage
-| module | stmts | line cov | tests touching it |
+| module | stmts | line cov (was) | tests touching it |
 |---|---|---|---|
-| `core.py` | 121 | 97% | 14 direct (`test_core.py`) + indirect |
-| `server.py` | 119 | 89% | 31 (`test_server_tools.py`) + 4 import smoke |
-| `store.py` | 176 | 97% | indirect via server tests |
-| `models.py` | 64 | 97% | indirect |
-| `exports.py` | 27 | 100% | indirect via export tests |
-| `cli.py` | 154 | **0%** | none |
-| **TOTAL** | 662 | **73%** (≈95% excluding the CLI) | 49 |
+| `core.py` | 121 | 97% (97%) | 14 direct + indirect |
+| `server.py` | 119 | 92% (89%) | 34 tool tests + 4 import/registration |
+| `store.py` | 180 | 97% (97%) | indirect + corrupt-state + export-metadata |
+| `models.py` | 64 | 97% (97%) | indirect |
+| `exports.py` | 27 | 100% (100%) | indirect |
+| `cli.py` | 154 | **73% (0%)** | 6 smoke tests (`test_cli.py`) |
+| **TOTAL** | 666 | **91% (73%)** | **60 (was 49)** |
 
-## Verdict: RED
-By the rubric's second clause: **a can't-fail test is standing guard over a
-real contract.** The `hasattr` registration check is the suite's only guard
-on the MCP tool surface — the contract a connected Claude actually consumes —
-and it survives deletion of the registration itself. Everything else here is
-AMBER-shaped (real gaps, mostly loud-failure paths); this one finding is what
-tips it. It is also a minutes-long fix (see additions).
+## Verdict: AMBER (was RED)
+The RED finding — a can't-fail `hasattr` test standing guard over the MCP
+tool contract — is fixed and was proven able to fail. Remaining gaps are
+real but loud-failure or low-variance: no silent failure stands on a
+relied-upon path.
 
-## Top gaps (ranked by silent-failure risk)
-1. **Registration guard can't fail + three tool wrappers never invoked** —
-   `tests/test_server_imports.py:21`, `server.py:175,182,190`. Delete a
-   decorator or typo a response key in `rating_by_genre`/`top_authors`/
-   `books_by_month` and the suite stays green while the live tool surface is
-   broken or missing. *Closes it:* enumerate FastMCP's actual registered
-   tools (`await mcp.list_tools()`) and assert names + docstrings; add one
-   in-process call per untested wrapper asserting a real key.
-2. **Corrupt `state.json` is unhandled and untested** — `store.load_state`
-   does bare `json.loads`; a truncated write bricks every tool with a raw
-   `JSONDecodeError`. *Closes it:* one corrupt-file fixture in `tmp_path` +
-   decide the behavior (error dict beats stack trace at a tool boundary).
+## Top gaps (open; ranked by silent-failure risk)
 3. **Goodreads importer is happy-path only** — `core.py:220` (malformed date
-   → None), `:238` (empty-title skip), `:260` ("Uncategorized" default) all
-   dark; a header-less CSV silently yields `{"parsed": 0}`, unverified. This
-   is the highest-variance real-user input in the system. *Closes it:* one
-   messy-CSV fixture exercising all three branches + a no-headers case.
-4. **`record_export` grows `state.json` without bound** — `store.py:302-304`
-   appends full report content on every export, forever — a silent
-   data-growth regression in miniature, in the repo that teaches the
-   pattern. *Closes it:* a test pinning a cap/truncation decision.
-5. **CLI adapter fully dark** — `cli.py` 0%, including `cmd_import_goodreads`
-   (the only file-reading ingest) and `SystemExit` paths. Breaks loudly for
-   a human, invisibly for CI. *Closes it:* 3–4 `cli.main([...])` + capsys
-   smoke tests on the existing sandboxed-data-dir fixture.
-6. **Adapter clock reads** — `store.py:236`, `server.py:215`; the
-   mark-status test asserts runtime `date.today()` (midnight-flaky), and the
-   default-today branches are themselves uncovered. *Closes it:* thread an
-   optional `today=` through the two adapter defaults, pin it in tests.
+   → None), `:238` (empty-title skip), `:260` ("Uncategorized" default)
+   still dark; a header-less CSV silently parses to zero rows, unverified.
+   *Closes it:* one messy-CSV fixture exercising all three branches + a
+   no-headers case.
+6. **Adapter clock reads** — `store.py:~240`, `server.py:215`; the
+   mark-status test asserts runtime `date.today()` (midnight-flaky).
+   *Closes it:* thread an optional `today=` through the two adapter
+   defaults and pin it.
+7. **Boundary minutiae** — rating tested at 99, not at 0/1/5/6;
+   `as_of_month` clamp unexercised. Brief, low risk.
 
-## Cheapest high-value additions
-- **Registration test that can fail:** assert the name set from
-  `mcp.list_tools()` (not `hasattr`) and that every tool has a docstring —
-  ~10 lines, converts the RED to AMBER on its own.
-- **Corrupt-state fixture:** write `"{not json"` to the sandboxed
-  `state.json`, call any tool, assert the chosen behavior — one test.
-- **CLI smoke trio:** `main(["summary"])`, `main(["add", ...])`,
-  `main(["import-goodreads", fixture])` with capsys on the existing env
-  fixture — covers most of the 154 dark statements in minutes.
+## Closed this round (2026-06-12, directed)
+1. ✅ Registration test that can fail (`mcp.list_tools()` + docstring check;
+   proven red once) + in-process tests for `rating_by_genre`/`top_authors`/
+   `books_by_month`.
+2. ✅ Corrupt `state.json` fails soft: moved aside to `state.json.corrupt`
+   (user data preserved), tools continue on fresh state; pinned by test.
+4. ✅ `record_export` stores `{title, path}` metadata only — nothing ever
+   read the stored content, and it grew `state.json` without bound. Pinned.
+5. ✅ CLI adapter smoke suite (6 tests, 0% → 73%).
+
+## Cheapest high-value additions (next round)
+- **Messy-CSV importer fixture** — malformed date + empty title + no-shelf
+  rows in one file, assert parsed/skipped counts and the "Uncategorized"
+  default — one fixture, one test, closes gap 3.
+- **`today=` seam at the two adapter defaults** — small signature thread,
+  kills the midnight-flaky assert, closes gap 6.
+- **Rating boundary quartet** — `0/1/5/6` through `add_book`, four asserts,
+  closes gap 7.
 
 ## Strengths
-- **Tool-layer tests are real integration tests** — 31 in-process calls
-  against sandboxed state covering validation rejection, dedupe,
-  copy-on-write overlay semantics, tombstone reversibility, and export
-  path-traversal confinement (`test_export_rejects_path_outside_data_dir`).
-- **The pure core was designed for testability and the tests cash it in** —
-  injected `as_of_month`, frozen dataclasses, exact pinned values
-  (`avg_rating == 4.36`), tie-breaks and sample-size-carry asserted
-  explicitly.
-- **Sandboxing is airtight** — every write-path test runs against
-  `tmp_path` via the env-var seam; tests are order-independent and cannot
-  touch `~/.book-tracker`.
+- **Tool-layer tests are real integration tests** — now 34 in-process calls
+  covering validation rejection, dedupe, copy-on-write overlay semantics,
+  tombstone reversibility, export path confinement, corrupt-state fail-soft,
+  and export-metadata shape.
+- **The registration test asks FastMCP, not the module namespace** — and the
+  suite's history now includes proof it can go red.
+- **Sandboxing is airtight** — every write-path test (server AND the new CLI
+  suite) runs against `tmp_path` via the env-var seam.
+- **The pure core was designed for testability** — injected `as_of_month`,
+  frozen dataclasses, exact pinned values, tie-breaks asserted explicitly.

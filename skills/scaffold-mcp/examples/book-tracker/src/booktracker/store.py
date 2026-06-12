@@ -68,7 +68,15 @@ def load_state() -> dict:
     p = state_path()
     if not p.exists():
         return _empty_state()
-    state = json.loads(p.read_text())
+    try:
+        state = json.loads(p.read_text())
+    except json.JSONDecodeError:
+        # A truncated or hand-edited state file must not brick every tool —
+        # but silently resetting would destroy the user's library. Fail soft:
+        # move the corrupt file aside (preserved for recovery) and continue
+        # with fresh state.
+        p.replace(p.with_suffix(".json.corrupt"))
+        return _empty_state()
     # Legacy state (pre copy-on-write) carried per-book status_overrides; it's
     # ignored now — the demo always runs against a fresh data dir, so there are
     # no real upgrades to migrate. Dropped silently rather than crash on it.
@@ -299,9 +307,13 @@ def reset_library() -> dict:
 
 # ── Exports (durable artifacts) ──────────────────────────────────────
 
-def record_export(title: str, content: str) -> None:
+def record_export(title: str, path: str) -> None:
+    """Log export metadata: title + where it was written. Deliberately NOT the
+    rendered content — nothing reads it back, and storing full reports grew
+    state.json without bound on every export (the silent data-growth class
+    this repo's CLAUDE.md warns about). The file on disk is the artifact."""
     state = load_state()
-    state["exports"].append({"title": title, "content": content})
+    state["exports"].append({"title": title, "path": path})
     save_state(state)
 
 

@@ -3,12 +3,18 @@ transport selection works. Skips cleanly if the `mcp` SDK isn't installed (the
 pure-core tests don't need it). Catches wiring/signature breakage without running
 a server or touching saved state."""
 
+import asyncio
+
 import pytest
 
 pytest.importorskip("mcp")
 
 
-def test_server_exposes_expected_tools():
+def test_tools_are_registered_with_fastmcp():
+    # Asks FastMCP itself what's registered — NOT hasattr(server, name),
+    # which still passes after an @mcp.tool() decorator is deleted (the bare
+    # function remains a module attribute). This version goes red when a
+    # tool actually falls off the live surface.
     import booktracker.server as server
 
     expected = {
@@ -18,8 +24,14 @@ def test_server_exposes_expected_tools():
         "find_books", "top_genres", "rating_by_genre", "top_authors",
         "books_by_month", "reading_summary", "pace_to_goal", "export_markdown",
     }
-    missing = {name for name in expected if not hasattr(server, name)}
-    assert not missing, f"server missing tools: {missing}"
+    registered = {t.name: t for t in asyncio.run(server.mcp.list_tools())}
+    missing = expected - set(registered)
+    assert not missing, f"not registered with FastMCP: {missing}"
+
+    # Docstrings are the contract Claude reads — a tool without one is wired
+    # but mute.
+    undocumented = [n for n in expected if not (registered[n].description or "").strip()]
+    assert not undocumented, f"tools missing docstrings: {undocumented}"
 
 
 def test_transport_defaults_to_stdio():
