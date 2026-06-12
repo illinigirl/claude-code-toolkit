@@ -40,7 +40,7 @@ trip-logger/
 ├── setup.sh · preflight.sh   one-command venv setup + lint/test gate
 └── pyproject.toml · requirements.txt · .gitignore · LICENSE · README.md
 
-$ pytest -q      →  17 passed
+$ pytest -q      →  all passed
 $ ruff check .   →  All checks passed!
 ```
 
