@@ -13,24 +13,41 @@ coverage via local `.venv` (pytest-cov) · no evals/paid-API suites present
 - [x] time: closed — clock reads factored to seams (`store._today_iso`, `server._today`) and the formerly midnight-flaky mark-status test now pins both. CLI's two `date.today()` reads remain but no test asserts against runtime dates.
 - [x] adapters: smoke tests on both — 6 CLI tests (`test_cli.py`, 0% → 73%; remaining dark lines are print formatting in pace/by-month/edit/delete/samples/reset) and every tool wrapper now invoked in-process. `server.main()` transport binding (285-291, 295) untested by design — `_resolve_transport` is the factored, tested decision logic.
 - [x] cant-fail: closed — registration asserted via `mcp.list_tools()` (names + docstrings), proven red once with a decorator removed. Dead `core.book_index` (dark because unreachable) deleted rather than tested.
+- [x] residuals: all dark lines accounted for — 11 stmts pragma-excluded with reasons (transport binding + `__main__` guards), 41 ledgered (CLI print formatting; table below). Unaccounted dark: zero.
+
+## Coverage
+**raw 94% · protected 100%** — every dark line is pragma-excluded with a
+reason or on the ledger below. Raw will never be 100% here on purpose:
+chasing the ledgered lines would manufacture tests that assert print
+statements print.
 
 ## Per-module coverage
 | module | stmts | line cov (first audit) | tests touching it |
 |---|---|---|---|
 | `core.py` | 119 | **100%** (97%) | 20 direct + indirect |
-| `server.py` | 121 | 94% (89%) | 40+ tool tests + registration |
+| `server.py` | 112 | **100%** (89%) | 40+ tool tests + registration |
 | `store.py` | 182 | **100%** (97%) | direct + indirect |
 | `models.py` | 64 | **100%** (97%) | via validation tests |
 | `exports.py` | 27 | 100% (100%) | indirect |
-| `cli.py` | 154 | 73% (**0%**) | 6 smoke tests |
-| **TOTAL** | 668 | **93%** (73%) | **71** (was 49) |
+| `cli.py` | 152 | 73% (**0%**) | 6 smoke tests |
+| **TOTAL** | 657 | **94% raw / 100% protected** (73%) | **71** (was 49) |
+
+## Accepted residuals
+| file | lines | count | reason |
+|---|---|---|---|
+| `cli.py` | 39-48, 52-65 | 24 | `by-month`/`pace` print formatting (bar chart, verdict strings) — a test would assert prints print; revisit if a date-asserting CLI test ever lands |
+| `cli.py` | 111-131 | 12 | `samples`/`edit`/`delete`/`reset` message strings — same pattern as the six smoked commands |
+| `cli.py` | 29-30, 94, 106, 141, 147-148 | 5 | empty-library line, duplicate-add exit, invalid-row suffix, export text branch + SystemExit — low-variance one-liners |
+
+Pragma-excluded (visible via `grep -n "pragma: no cover"`): `server.main()`
++ both `__main__` guards — binds transports / process entry; the decision
+logic `_resolve_transport` is tested.
 
 ## Verdict: GREEN (was RED → AMBER → GREEN, all 2026-06-12)
 No checklist dimension is dark on a relied-upon path; both adapters have
-smoke tests; no can't-fail tests remain (and the registration test has been
-red once — proven able to fail). Honest residuals, accepted on the record:
-`main()` transport binding (by design), CLI print formatting in non-smoked
-commands, and the CLI's two unpinned clock reads (no test depends on them).
+smoke tests; no can't-fail tests remain (the registration test has been red
+once — proven able to fail); and **protected coverage is 100%** — zero
+unaccounted dark lines. The 6% raw gap is the ledger, not neglect.
 
 ## Closed across the three passes (directed by Megan)
 1. ✅ Registration test asks FastMCP (`mcp.list_tools()` + docstrings; proven

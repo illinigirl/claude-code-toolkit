@@ -281,7 +281,10 @@ def _resolve_transport(argv=None) -> tuple[str, str, int]:
     return ("streamable-http" if http else "stdio", args.host, args.port)
 
 
-def main(argv=None) -> None:
+# Excluded from coverage: binds a transport / blocks on mcp.run() — testing it
+# would test FastMCP, not this code. The decision logic (_resolve_transport)
+# is factored out above and IS tested.
+def main(argv=None) -> None:  # pragma: no cover
     transport, host, port = _resolve_transport(argv)
     if transport == "streamable-http":
         mcp.settings.host = host
@@ -291,5 +294,5 @@ def main(argv=None) -> None:
         mcp.run()
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover — process entry, nothing to assert
     main()
