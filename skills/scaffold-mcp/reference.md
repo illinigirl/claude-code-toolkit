@@ -86,6 +86,66 @@ file paths stop being reachable by the caller. So:
 - **Default writes to a known location** under the data dir, not the process cwd
   — which is unpredictable when a desktop client launches the process.
 
+## When this shape doesn't fit — and what survives anyway
+
+The layout encodes three assumptions: **state is local and file-shaped**
+(`store.py` writing JSON), **the interesting logic is deterministic compute
+over that state** (a `core.py` worth unit-testing on stdlib), and **the server
+is single-user** (whoever launched the process owns the data). That's the
+personal-data class of MCP, and it's what the scaffold targets. Three other
+classes strain the literal file list — the seams generalize, the files don't.
+
+**API-wrapper servers** — the "store" is someone else's service (a music API,
+a finance aggregator, a SaaS). Keep the one-I/O-module rule but read it as
+"the ONLY module that talks to the outside world": `store.py` becomes
+`<service>_client.py`, and auth, token refresh, rate limits, caching, and
+pagination live there. Expect the balance to invert: the pure core shrinks to
+whatever scoring/merging math you have, and the tests that matter most become
+contract tests against recorded responses rather than stdlib unit tests.
+*Still a good starting point* — scaffold, then replace `store.py`'s internals;
+the adapters, dual transport, and test layering carry over unchanged.
+
+**Stateful-session servers** — the resource is a live connection (a held
+websocket, a browser, a long-lived DB session, a device). There's little pure
+compute to extract; the hard problem is lifecycle — connect, hold, recover,
+disconnect — and this layout has no opinion about it. *Partial starting
+point* — the adapter layer, transport selection, and docstring discipline
+still apply, but plan a session/lifecycle module the scaffold doesn't give
+you, and accept that the "runs without an MCP client" CLI may shrink to a
+smoke script.
+
+**Multi-user remote servers** — shared database, per-user identity, OAuth.
+The data-dir model is wrong by construction: state is shared and remote,
+identity comes from the request, and the read path inherits data-growth
+failure modes a local JSON file never has. *Starting point for development
+only* — beginning local-and-stdio with the pure core extracted is the right
+first move, and the dual-transport server is the bridge to remote, but the
+store layer gets replaced wholesale and auth + deployment are net-new work
+the scaffold deliberately doesn't template (hosts differ too much to guess).
+
+One more assumption worth naming: **tools-only.** MCP also has resources,
+prompts, sampling, and elicitation. A server whose value is exposing
+resources (say, a documentation server) or long-running jobs with progress
+notifications needs a different `server.py` surface regardless of how pure
+the core is.
+
+What survives in *every* class — the actual invariants:
+
+1. **One seam to the outside world** — file, API, DB, or device; everything
+   else stays testable without it.
+2. **Pure functions wherever exactness matters** — the fraction varies, the
+   move doesn't.
+3. **Thin tool layer, docstrings as the contract** — that's what the model
+   reads.
+4. **A second way to drive it without an MCP client** — a CLI when the core
+   is fat, a smoke script when it isn't.
+5. **Remote-safe I/O** — inline content, pasted input, confined paths, the
+   moment the server might leave the laptop.
+
+In short: the scaffold's transferable value is the seams plus the green
+wiring, not the file list. What varies by class is how much of `store.py`
+and `core.py` survive contact with the real domain.
+
 ## Tests that match the architecture
 
 - `test_core.py` — the pure functions, on stdlib alone. The bulk of domain
