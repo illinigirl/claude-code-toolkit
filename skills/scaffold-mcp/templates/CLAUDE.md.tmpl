@@ -98,6 +98,32 @@ not the repo. Point it at a temp dir to experiment without touching real data:
   covers the pure functions; `test_server_tools.py` drives the actual tool
   surface in-process against a sandboxed data dir (round-trip + error paths).
 
+## Test coverage standing orders
+
+Agent-written coverage has a predictable fingerprint: pure cores near 100%,
+the same gaps everywhere else. Before calling any feature done, check every
+dimension of this list — each one is the negative space agents skip by default:
+
+- **Empty / degenerate:** the zero-state case is tested (`[]`, empty store,
+  fresh install).
+- **Boundary:** limits are tested *at* the boundary (0, 1, exactly-at-cap),
+  not just far outside it.
+- **Error paths:** every defensive branch executes in at least one test —
+  corrupt `state.json`, malformed import row, missing file. If the code
+  handles it, a test proves it; unexercised error handling is unverified.
+- **Scale:** at least one test uses a fixture big enough to drive any
+  pagination / chunking / "fits in memory" assumption past its first page.
+- **Time:** no direct clock reads in logic under test — `now`/`today` are
+  parameters so tests can pin them. Default-today paths at adapters get
+  their own test.
+- **Adapters:** the CLI and server wiring get smoke tests (drive
+  `main([...])` with capsys) — pure-core coverage does not protect argparse
+  plumbing or output formatting.
+- **Tests must be able to fail:** no `hasattr`-style assertions that survive
+  deleting the behavior; if a test has never been red, prove it can be.
+
+Run `/coverage-audit` before calling a surface ship-ready.
+
 ## A data-shape assumption to retire before it bites
 
 `load_{{DOMAIN_PLURAL}}` reads the whole seed + state into memory and the tools

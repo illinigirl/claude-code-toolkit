@@ -1,8 +1,9 @@
 # claude-code-toolkit
 
 A small toolkit of [Claude Code](https://code.claude.com) skills, distributed as
-an installable **plugin marketplace**. Skills plus two hooks today (failure-mode
-flagging and a context-threshold alert); room to grow into agents and MCP servers.
+an installable **plugin marketplace**. Skills plus three hooks today (failure-mode
+flagging, a context-threshold alert, and a coverage nudge); room to grow into
+agents and MCP servers.
 
 ## Skills
 
@@ -15,6 +16,7 @@ flagging and a context-threshold alert); room to grow into agents and MCP server
 | [failure-scan](skills/failure-scan/) | `/failure-scan` | Review the current diff against the failure-mode catalog — the judgment classes a hook can't catch (plausible-but-wrong AI output, biased per-segment stats, dispatch-order coupling) — reporting concrete risks with each class's verify questions and fix pattern. |
 | [design-note](skills/design-note/) | `/design-note` | Write a structured `<feature>-DESIGN.md` before building — problem, the core reframe, the design with options + tradeoffs, edge cases, and open questions to decide at build time. |
 | [note](skills/note/) | `/note` | Frictionless note-to-self — dump a thought and it's auto-classified into a bucket (`note`/`skill`/`mcp`/`todo`) under `~/.claude/notes/`, no category-picking. Bare `/note` lists everything; `/note <bucket>` lists one. |
+| [coverage-audit](skills/coverage-audit/) | `/coverage-audit` | Audit a project's coverage for **negative space** — run line coverage, then judge the misses against the gaps agent-written suites predictably leave (empty, boundary, error paths, scale/pagination, time, untested adapters, tests that can't fail). Reports the top gaps ranked by silent-failure risk + the cheapest tests to add, then proves its own completeness with a shipped validator (`checklist.py`). Verify proves it runs; coverage-audit proves it's protected. |
 
 ## What `/scaffold-mcp` generates
 
@@ -93,6 +95,40 @@ in `settings.json` `"env"`):
 
 `context-alert/test_hook.py` keeps it honest.
 
+## Coverage-nudge hook + `/coverage-audit`
+
+The same deterministic/judgment split as the failure-mode system, applied to
+test coverage. The empirical observation behind it: agent-written coverage has
+a predictable fingerprint — pure cores near 100%, while the same five gaps
+recur everywhere (untested CLI adapters, never-exercised error branches,
+single-page pagination stubs, dark seams to external APIs, tests that can't
+fail).
+
+- **A Stop + SessionStart hook** (auto-registered on install), with an
+  opt-in-per-repo escalation keyed off the audit's own artifact:
+  - *No `COVERAGE-AUDIT.md` in the repo yet:* at session pauses, the basic
+    asymmetry check — source files changed but no test files → a one-line
+    nudge. Quiet in repos with no tests at all.
+  - *Repo has a `COVERAGE-AUDIT.md`* (you've run the audit once): the hook
+    tracks **staleness** instead — any source change after the report fires
+    the nudge, *whether or not tests also changed* (changed tests don't
+    prove appropriate tests). At **session start**, a stale report tells
+    Claude to run `/coverage-audit` at the first natural point — so after
+    the first manual run, refreshes happen without you asking. Running the
+    audit rewrites the report, which is what buys silence.
+  - Either way: states only facts git can verify, never blocks, fails
+    silent, debounced per distinct state (re-arms after a refresh or new
+    drift).
+- **`/coverage-audit`** is the judgment half: run real line coverage, read the
+  misses against the seven-dimension checklist, rank findings by *how quietly
+  the failure would ship*, and name the cheapest high-value tests to add.
+  The audit must then prove **its own** completeness: `checklist.py` parses
+  the report and fails unless every dimension was explicitly checked —
+  "not mentioned" can't masquerade as "checked and clean."
+
+`coverage-nudge/test_hook.py` and `skills/coverage-audit/test_checklist.py`
+keep both halves honest.
+
 ## Install (as a plugin)
 
 ```text
@@ -129,14 +165,17 @@ claude-code-toolkit/
     failure-scan/       SKILL.md — review a diff against the catalog
     design-note/        SKILL.md — write a <feature>-DESIGN.md
     note/               SKILL.md — frictionless note-to-self capture
+    coverage-audit/     SKILL.md · checklist.py · test_checklist.py
   hooks/
-    hooks.json          registers the failure-mode + context-alert hooks
+    hooks.json          registers the failure-mode, context-alert + coverage-nudge hooks
   failure-modes/
     catalog.md          the bug-class catalog (the shared brain)
     rules.json          grep-able rules the hook runs
     hook.py · test_hook.py
   context-alert/
     hook.py · test_hook.py   context-threshold alert -> offers /handoff
+  coverage-nudge/
+    hook.py · test_hook.py   source-changed-without-tests nudge -> offers /coverage-audit
   .github/workflows/
     test.yml            CI — scaffolds + verifies a generated project end-to-end,
                         tests the worked example (and drives its demo), runs the
