@@ -40,33 +40,57 @@ For each section / block:
 - **Redundancy** — does it overlap another section? **And if it was just added:
   is it already covered above, or could it fold into an existing section** rather
   than stand alone?
+- **Scope** — is it in the right CLAUDE.md in the hierarchy? A *team/project
+  convention* belongs in the project `./CLAUDE.md`; a *personal preference for
+  all your projects* belongs in user `~/.claude/CLAUDE.md`; a *sandbox URL,
+  personal test data, or anything secret* belongs in `./CLAUDE.local.md`
+  (gitignored), never the committed file. Flag anything sitting in the wrong
+  scope (e.g. a personal preference or a secret in the shared project file).
 - **Bucket** — for anything not staying as-is, which destination (next step)?
 
-## 3. Triage each demotable section (the three-way call)
+## 3. Triage each demotable section
 
-- **Keep & tighten** — a real, always-relevant directive. Stays; just made concise.
-- **Extract to a skill** — still useful but *reference-grade*. Propose a skill
-  name + a one-line pointer to replace it in CLAUDE.md. This is the **primary
-  release valve**: the content survives and becomes *invoked when relevant*, at
-  zero per-session cost.
-- **Archive** — genuinely stale / superseded. Move to `CLAUDE.archive.md` with a
-  dated `<!-- archived YYYY-MM-DD: why -->` note, not deleted, so it's recoverable.
+Each section that isn't staying as-is goes to one of these destinations:
 
-Prefer **extract** over **archive** for anything still true and occasionally
-useful — archiving is for what's probably dead.
+- **Remove** — wrong or truly dead. Delete (the floor; prefer archive if unsure).
+- **Condense** — keep, but say it in fewer lines (draft the tighter version).
+- **Extract to a skill** — still useful but *reference-grade* and broadly
+  relevant (a war story, how-to-run-X, a workflow). Propose a skill name + the
+  one-line pointer that replaces it. The content survives and is *invoked when
+  relevant*, at zero per-session cost.
+- **Move to a nested CLAUDE.md** — *area-specific* guidance (conventions for one
+  subtree: `web/`, `mcp/`, `infra/`…). A nested `CLAUDE.md` loads **on-demand
+  only when Claude works in that subtree**, so it leaves the root entirely. For
+  rules scoped to specific file globs rather than a whole dir, `.claude/rules/`
+  (with `paths:` frontmatter) is the finer-grained variant. Propose the target
+  path + which lines move.
+- **Re-scope** — right content, wrong file: move a personal preference to user
+  `~/.claude/CLAUDE.md`, or a sandbox URL / personal test data / secret to
+  `./CLAUDE.local.md` (gitignored). A secret in a committed file is urgent —
+  flag it loudly.
+- **Archive** — genuinely stale / superseded but worth keeping. Append to
+  `CLAUDE.archive.md` with a dated `<!-- archived YYYY-MM-DD: why -->` note (not
+  auto-loaded; recoverable).
+
+Routing rule of thumb: wrong scope (personal/secret in the shared file) →
+**re-scope** first; still-true + *broadly* useful → **skill**; still-true but
+*only* relevant to one codebase/path → **nested CLAUDE.md / rules**; probably
+dead → **archive**; wrong → **remove**.
 
 ## 4. Report, then (on approval) apply
 
 Report: current vs projected line count, and a short table — section → verdict
-(keep / tighten / extract→`skill-name` / archive) → one-line why. Lead with the
-highest-value cuts.
+(keep / condense / extract→`skill-name` / nest→`path/CLAUDE.md` / archive /
+remove) → one-line why. Lead with the highest-value cuts.
 
 **Only after the user agrees**, apply the approved changes:
-- tighten/merge in place;
-- for each **extract**: create the skill (`skills/<name>/SKILL.md`, with a
-  description so it loads on-demand) and replace the section with its pointer;
-- for each **archive**: append to `CLAUDE.archive.md` with the dated note and
-  remove from CLAUDE.md.
+- **condense**: tighten/merge in place;
+- **extract**: create the skill (`skills/<name>/SKILL.md`, with a description so
+  it loads on-demand) and replace the section with its pointer;
+- **nest**: create/append the nested `CLAUDE.md` (or `.claude/rules/<name>.md`)
+  and replace the section with a pointer to it;
+- **archive**: append to `CLAUDE.archive.md` with the dated note;
+- **remove**: delete.
 
 Re-state the new line count. If the user declines a suggestion, leave it and
 don't re-raise it this session.
@@ -75,6 +99,11 @@ don't re-raise it this session.
 
 - **Don't manufacture cuts.** A file already under budget and current may need
   nothing — "it's healthy, N lines, nothing to do" is a valid result.
+- **Don't split with `@import`.** `@path` imports load eagerly at launch (they
+  cost context immediately) — they don't achieve on-demand loading. Use skills,
+  nested CLAUDE.md, or `.claude/rules/` (all lazy) plus plain prose pointers.
+  Per the docs, `<!-- HTML comments -->` in CLAUDE.md are stripped before
+  context injection, so maintainer notes there are free.
 - **Archive is not auto-loaded** (it isn't named `CLAUDE.md`), so it costs no
   context; you only re-read it here. Surface anything in it that's now safe to
   delete permanently, or worth resurrecting.
