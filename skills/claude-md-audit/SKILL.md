@@ -80,12 +80,17 @@ Each section that isn't staying as-is goes to one of these destinations:
   relevant (a war story, how-to-run-X, a workflow). Propose a skill name + the
   one-line pointer that replaces it. The content survives and is *invoked when
   relevant*, at zero per-session cost.
-- **Move to a nested CLAUDE.md** — *area-specific* guidance (conventions for one
-  subtree: `web/`, `mcp/`, `infra/`…). A nested `CLAUDE.md` loads **on-demand
-  only when Claude works in that subtree**, so it leaves the root entirely. For
-  rules scoped to specific file globs rather than a whole dir, `.claude/rules/`
-  (with `paths:` frontmatter) is the finer-grained variant. Propose the target
-  path + which lines move.
+- **Move to a nested CLAUDE.md** — *area-specific* guidance that **one directory
+  owns** (conventions for `web/`, `mcp/`, `infra/`…). A nested `CLAUDE.md` loads
+  on-demand when Claude works in that subtree. Propose the target dir + lines.
+- **Move to a path-scoped rule** (`.claude/rules/<name>.md` with `paths:`
+  frontmatter) — *area-specific* guidance that **follows a file type across
+  directories**, where no single dir owns it (e.g. "all `*.test.*` must be able
+  to fail," "every `**/dynamodb.ts` paginates its scans"). Loads when Claude
+  touches a matching file anywhere. The deciding question: *does one directory
+  own this, or does it follow a file type wherever it lives?* If you'd copy the
+  same note into three subtrees, it's a rule, not a nested file. Propose the
+  glob + lines. (`~/.claude/rules/` for a personal cross-project rule.)
 - **Re-scope** — right content, wrong file: move a personal preference to user
   `~/.claude/CLAUDE.md`, or a sandbox URL / personal test data / secret to
   `./CLAUDE.local.md` (gitignored). A secret in a committed file is urgent —
@@ -95,22 +100,25 @@ Each section that isn't staying as-is goes to one of these destinations:
   auto-loaded; recoverable).
 
 Routing rule of thumb: wrong scope (personal/secret in the shared file) →
-**re-scope** first; still-true + *broadly* useful → **skill**; still-true but
-*only* relevant to one codebase/path → **nested CLAUDE.md / rules**; probably
-dead → **archive**; wrong → **remove**.
+**re-scope** first; still-true + *broadly* useful → **skill**; area-specific and
+*one directory owns it* → **nested CLAUDE.md**; area-specific but *follows a file
+type across dirs* → **path-scoped rule**; probably dead → **archive**; wrong →
+**remove**.
 
 ## 4. Report, then (on approval) apply
 
 Report: current vs projected line count, and a short table — section → verdict
-(keep / condense / extract→`skill-name` / nest→`path/CLAUDE.md` / archive /
-remove) → one-line why. Lead with the highest-value cuts.
+(keep / condense / extract→`skill-name` / nest→`dir/CLAUDE.md` / rule→`glob` /
+re-scope / archive / remove) → one-line why. Lead with the highest-value cuts.
 
 **Only after the user agrees**, apply the approved changes:
 - **condense**: tighten/merge in place;
 - **extract**: create the skill (`skills/<name>/SKILL.md`, with a description so
   it loads on-demand) and replace the section with its pointer;
-- **nest**: create/append the nested `CLAUDE.md` (or `.claude/rules/<name>.md`)
-  and replace the section with a pointer to it;
+- **nest**: create/append the nested `dir/CLAUDE.md` and replace the section
+  with a pointer to it;
+- **rule**: create `.claude/rules/<name>.md` with `paths:` frontmatter for the
+  glob and replace the section with a pointer;
 - **archive**: append to `CLAUDE.archive.md` with the dated note;
 - **remove**: delete.
 

@@ -191,7 +191,8 @@ reference).**
   line count, no LLM call). Two triggers: **prevention** — on *every* net
   addition (≥ `CLAUDE_MD_ADD_LINES`, default 1), it checks the new content on two
   axes: **kind** (directive=keep / reference=→ a skill / area-specific=→ a nested
-  `CLAUDE.md` or `.claude/rules`) and **scope** (team→project file / personal→
+  `CLAUDE.md` if one dir owns it, or a path-scoped `.claude/rules` file if it
+  follows a file type across dirs) and **scope** (team→project file / personal→
   `~/.claude/CLAUDE.md` / secret-or-local→ `CLAUDE.local.md`). Cheapest bloat to
   remove is the bloat that never lands. **Budget** — when the file exceeds
   `CLAUDE_MD_LINE_BUDGET` (default 200), it nudges a full audit (debounced once
@@ -208,9 +209,10 @@ reference).**
   `.claude/rules` globs** whose `paths:` match nothing (so the rule silently
   never loads). On approval it routes each section: **keep / condense /
   extract-to-skill** (the primary release valve) **/ move-to-nested-CLAUDE.md**
-  (area-specific; `.claude/rules` for path-scoped) **/ re-scope** (personal or
-  secret content to `~/.claude/CLAUDE.md` or `CLAUDE.local.md`) **/ archive**
-  (stale → `CLAUDE.archive.md`) **/ remove**. It never splits via `@import`
+  (area-specific, one dir owns it) **/ move-to-path-scoped-rule** (`.claude/rules`,
+  when it follows a file type across dirs) **/ re-scope** (personal or secret
+  content to `~/.claude/CLAUDE.md` or `CLAUDE.local.md`) **/ archive** (stale →
+  `CLAUDE.archive.md`) **/ remove**. It never splits via `@import`
   (those load eagerly). Pairs with the `context-doc-bloat`,
   `stated-not-derived-doc-facts`, `conflicting-instructions`, and
   `dead-rule-scope` catalog entries.

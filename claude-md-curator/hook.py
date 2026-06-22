@@ -9,7 +9,8 @@ mechanical part and points at the `/claude-md-audit` skill for the judgment:
   • Prevention (every addition): when an edit ADDS lines (>= CLAUDE_MD_ADD_LINES,
     default 1 — i.e. every net addition) to a context file, nudge Claude to check
     the NEW content on two axes — KIND (directive=keep / reference=-> a skill /
-    area-specific=-> a nested CLAUDE.md or .claude/rules) and SCOPE (team
+    area-specific=-> a nested CLAUDE.md if a dir owns it, or a path-scoped
+    .claude/rules file if it follows a file type across dirs) and SCOPE (team
     convention=project CLAUDE.md / personal=~/.claude/CLAUDE.md / secret-or-local
     =CLAUDE.local.md, gitignored). Cheapest bloat to remove is the bloat that
     never lands. (Pure tweaks that replace text net zero added lines, so they
@@ -177,8 +178,10 @@ def main():
                 f"{name}: you just added ~{added} line(s). Check the NEW content "
                 "on two axes. (1) KIND: always-relevant *directive* (keep), "
                 "*reference* (war story / how-to — move to an on-demand skill), "
-                "or *area-specific* (move to a nested CLAUDE.md / .claude/rules "
-                "for that subtree). (2) SCOPE: a team convention -> project "
+                "or *area-specific* — if one directory owns it, a nested "
+                "CLAUDE.md for that subtree; if it follows a file type across "
+                "dirs (e.g. all *.test.*), a path-scoped .claude/rules/ file. "
+                "(2) SCOPE: a team convention -> project "
                 "CLAUDE.md; your personal preference -> ~/.claude/CLAUDE.md; a "
                 "sandbox URL / personal test data / anything secret -> "
                 "CLAUDE.local.md (gitignored), never the committed file. Move it "
