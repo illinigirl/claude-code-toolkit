@@ -51,6 +51,7 @@ MANIFEST: dict[str, str] = {
     "test_core.py.tmpl": "tests/test_core.py",
     "test_server_tools.py.tmpl": "tests/test_server_tools.py",
     "test_server_imports.py.tmpl": "tests/test_server_imports.py",
+    "test_readme.py.tmpl": "tests/test_readme.py",
     "setup.sh.tmpl": "setup.sh",
     "preflight.sh.tmpl": "preflight.sh",
 }
