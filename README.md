@@ -17,6 +17,7 @@ agents and MCP servers.
 | [design-note](skills/design-note/) | `/design-note` | Write a structured `<feature>-DESIGN.md` before building — problem, the core reframe, the design with options + tradeoffs, edge cases, and open questions to decide at build time. |
 | [orchestrate](skills/orchestrate/) | `/orchestrate` | Recommend a good use of subagents — walk a 2-level decision tree (inline / single agent / multi-agent → pattern), defend item independence before any fan-out, hand back a copy-paste Agent/Workflow snippet, and run it only on your go-ahead. |
 | [claude-md-audit](skills/claude-md-audit/) | `/claude-md-audit` | Audit a CLAUDE.md for health (concision, currency, usefulness, redundancy, length vs a budget) and, on approval, tighten it + move reference material to on-demand skills (stale guidance to `CLAUDE.archive.md`). CLAUDE.md is the index; skills are the chapters. |
+| [memory-audit](skills/memory-audit/) | `/memory-audit` | Audit Claude Code's auto memory (`MEMORY.md` + topic files) for the 200-line / 25KB load cutoff (entries past it are silently dropped), staleness, and contradiction; on approval, tighten `MEMORY.md` to a lean index and move detail to on-demand topic files. |
 | [note](skills/note/) | `/note` | Frictionless note-to-self — dump a thought and it's auto-classified into a bucket (`note`/`skill`/`mcp`/`todo`) under `~/.claude/notes/`, no category-picking. Bare `/note` lists everything; `/note <bucket>` lists one. |
 | [coverage-audit](skills/coverage-audit/) | `/coverage-audit` | Audit a project's coverage for **negative space** — run line coverage, then judge the misses against the gaps agent-written suites predictably leave (empty, boundary, error paths, scale/pagination, time, untested adapters, tests that can't fail). Reports the top gaps ranked by silent-failure risk + the cheapest tests to add, then proves its own completeness with a shipped validator (`checklist.py`). Verify proves it runs; coverage-audit proves it's protected. |
 
@@ -210,6 +211,32 @@ reference).**
 and over-budget fire; pure tweaks (net-0), non-targets, and the archive file
 stay silent.
 
+## Memory curator hook + `/memory-audit`
+
+The auto-memory twin of the CLAUDE.md pair. Claude Code's auto memory lives at
+`~/.claude/projects/<project>/memory/` — a `MEMORY.md` index plus topic files —
+and only the **first 200 lines / 25 KB of `MEMORY.md` load each session;
+anything past that is silently not loaded.** A *hard* truncation, not a soft
+budget — and since Claude writes this file itself across sessions, it grows on
+its own, leaving tail entries that look stored but never reach context.
+
+- **A PostToolUse hook** (auto-registered on install) that fires only on
+  `MEMORY.md` edits inside a memory dir (mechanical: line + byte count). When the
+  file crosses `MEMORY_LINE_BUDGET` (default 200) or `MEMORY_BYTE_BUDGET`
+  (default 25 KB), it warns that the tail is now silently dropped and nudges
+  `/memory-audit`. Debounced once per session; `MEMORY_AUDIT_DISABLED` off-switch;
+  never auto-edits. Topic-file edits don't fire (only `MEMORY.md` truncates); a
+  bare repo `MEMORY.md` outside a memory dir is ignored.
+- **`/memory-audit`** is the judgment half: reads `MEMORY.md` + topic files and
+  reports what's **below the cutoff (silently dropped now)**, staleness, and
+  redundancy/contradiction (likely, since Claude wrote the notes incrementally).
+  On approval it tightens `MEMORY.md` to a lean index and moves detail into
+  on-demand topic files — the same **index/chapters** principle as CLAUDE.md.
+  Catalog: `memory-index-overflow` (the hard-cutoff sibling of `context-doc-bloat`).
+
+`memory-curator/test_hook.py` keeps it honest — over-budget by lines or bytes
+fires; topic files, a non-memory-dir `MEMORY.md`, and net under-budget stay silent.
+
 ## Install (as a plugin)
 
 ```text
@@ -249,8 +276,9 @@ claude-code-toolkit/
     coverage-audit/     SKILL.md · checklist.py · test_checklist.py
     orchestrate/        SKILL.md — the subagent-orchestration decision tree
     claude-md-audit/    SKILL.md — audit + trim a CLAUDE.md (index vs chapters)
+    memory-audit/       SKILL.md — audit auto memory vs the load cutoff
   hooks/
-    hooks.json          registers the failure-mode, context-alert, subagent-nudge, claude-md-curator + coverage-nudge hooks
+    hooks.json          registers the failure-mode, context-alert, subagent-nudge, claude-md-curator, memory-curator + coverage-nudge hooks
   failure-modes/
     catalog.md          the bug-class catalog (the shared brain)
     rules.json          grep-able rules the hook runs
@@ -261,6 +289,8 @@ claude-code-toolkit/
     hook.py · test_hook.py   parallelizable-task nudge -> offers /orchestrate
   claude-md-curator/
     hook.py · test_hook.py   CLAUDE.md bloat nudge -> offers /claude-md-audit
+  memory-curator/
+    hook.py · test_hook.py   MEMORY.md load-cutoff nudge -> offers /memory-audit
   coverage-nudge/
     hook.py · test_hook.py   source-changed-without-tests nudge -> offers /coverage-audit
   .github/workflows/
