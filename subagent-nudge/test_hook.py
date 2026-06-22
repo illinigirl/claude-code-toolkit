@@ -95,12 +95,16 @@ def main():
             rc, out = run(phrase)
             check(f"narrow stays silent: {phrase!r}", rc == 0 and not out)
 
-        # Debounce: second matching prompt in the SAME session is silent.
+        # Per-distinct-prompt debounce: the SAME prompt won't re-fire, but a
+        # DIFFERENT qualifying prompt in the same session still does (the point
+        # is to flag every parallelizable request, not just the first).
         s = uuid.uuid4().hex
         rc, out = run("audit every route", session_id=s)
-        check("first match in session -> fires", rc == 0 and bool(out))
+        check("first qualifying prompt -> fires", rc == 0 and bool(out))
+        rc, out = run("audit every route", session_id=s)
+        check("same prompt resubmitted -> debounced silent", rc == 0 and not out)
         rc, out = run("now check all the handlers too", session_id=s)
-        check("second match same session -> debounced silent", rc == 0 and not out)
+        check("different qualifying prompt, same session -> still fires", rc == 0 and bool(out))
 
         # Disable switch: even a textbook match is a clean no-op.
         rc, out = run("audit every single endpoint", SUBAGENT_NUDGE_DISABLED="1")

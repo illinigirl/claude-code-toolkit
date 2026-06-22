@@ -9,7 +9,7 @@
       "name": "claude-code-toolkit",
       "source": "./",
       "description": "Skills: scaffold-mcp (generate a tested MCP server), verify-mcp (check an MCP is green + well-formed with a health report), public-ready (audit + publish a repo), coverage-audit (audit test coverage for negative space, with a completeness validator), handoff (write a PICKUP handoff), design-note (write a structured design note), orchestrate (recommend a good use of subagents), claude-md-audit (trim a CLAUDE.md and move reference material to on-demand skills), memory-audit (keep auto-memory's MEMORY.md under the load cutoff), note (frictionless auto-categorized note-to-self), failure-scan (review a diff against a failure-mode catalog). Plus hooks: failure-mode (auto-flags risky patterns, e.g. unpaginated DynamoDB scans), context-alert (warns when session context crosses a threshold and offers a handoff checkpoint), subagent-nudge (flags parallelizable tasks and offers an orchestration plan), claude-md-curator (flags a CLAUDE.md growing past its budget and offers to move reference to skills), memory-curator (flags MEMORY.md crossing the auto-memory load cutoff), and coverage-nudge (flags source changes with no test changes and offers a coverage audit).",
-      "version": "0.14.0",
+      "version": "0.15.0",
       "license": "MIT",
       "keywords": [
         "mcp",
