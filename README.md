@@ -16,6 +16,7 @@ agents and MCP servers.
 | [failure-scan](skills/failure-scan/) | `/failure-scan` | Review the current diff against the failure-mode catalog — the judgment classes a hook can't catch (plausible-but-wrong AI output, biased per-segment stats, dispatch-order coupling) — reporting concrete risks with each class's verify questions and fix pattern. |
 | [design-note](skills/design-note/) | `/design-note` | Write a structured `<feature>-DESIGN.md` before building — problem, the core reframe, the design with options + tradeoffs, edge cases, and open questions to decide at build time. |
 | [orchestrate](skills/orchestrate/) | `/orchestrate` | Recommend a good use of subagents — walk a 2-level decision tree (inline / single agent / multi-agent → pattern), defend item independence before any fan-out, hand back a copy-paste Agent/Workflow snippet, and run it only on your go-ahead. |
+| [claude-md-audit](skills/claude-md-audit/) | `/claude-md-audit` | Audit a CLAUDE.md for health (concision, currency, usefulness, redundancy, length vs a budget) and, on approval, tighten it + move reference material to on-demand skills (stale guidance to `CLAUDE.archive.md`). CLAUDE.md is the index; skills are the chapters. |
 | [note](skills/note/) | `/note` | Frictionless note-to-self — dump a thought and it's auto-classified into a bucket (`note`/`skill`/`mcp`/`todo`) under `~/.claude/notes/`, no category-picking. Bare `/note` lists everything; `/note <bucket>` lists one. |
 | [coverage-audit](skills/coverage-audit/) | `/coverage-audit` | Audit a project's coverage for **negative space** — run line coverage, then judge the misses against the gaps agent-written suites predictably leave (empty, boundary, error paths, scale/pagination, time, untested adapters, tests that can't fail). Reports the top gaps ranked by silent-failure risk + the cheapest tests to add, then proves its own completeness with a shipped validator (`checklist.py`). Verify proves it runs; coverage-audit proves it's protected. |
 
@@ -175,6 +176,37 @@ nudge-hook + judgment-skill shape.
 `subagent-nudge/test_hook.py` keeps the trigger boundary honest — breadth fires,
 single-target prompts (`audit this function`) stay silent.
 
+## CLAUDE.md curator hook + `/claude-md-audit`
+
+`CLAUDE.md` is injected into context **every session**, but nothing
+re-evaluates it — so it only grows: reference material, restated lessons, and
+stale facts accumulate, and every line is paid for on every session. The
+guideline is ≤~200 lines. This pair keeps it there, on the principle **CLAUDE.md
+is the index (always-relevant directives); skills are the chapters (on-demand
+reference).**
+
+- **A PostToolUse hook** (auto-registered on install) that fires only on
+  `CLAUDE.md` / `AGENTS.md` edits (pure mechanical work — no FS scan beyond a
+  line count, no LLM call). Two triggers: **prevention** — when an edit *adds* a
+  substantial block (≥ `CLAUDE_MD_ADD_LINES`, default 10), it nudges "directive
+  or reference? — if reference, make it a *skill* instead of growing the file"
+  (fires on every sizable addition; cheapest bloat to remove is the bloat that
+  never lands); and **budget** — when the file exceeds `CLAUDE_MD_LINE_BUDGET`
+  (default 200), it nudges a full audit (debounced once per session). Silenceable
+  with `CLAUDE_MD_AUDIT_DISABLED`; never auto-edits.
+- **`/claude-md-audit`** is the judgment half: reads the whole file (+
+  `CLAUDE.archive.md` if present) and reports per-section verdicts on concision,
+  currency (stale facts vs the repo), usefulness, redundancy (incl. whether a new
+  addition is already covered), and length. On approval it applies a **three-way
+  triage** — keep & tighten / **extract to a skill** (the primary release valve —
+  the content survives and loads on-demand) / archive stale guidance to
+  `CLAUDE.archive.md` (not auto-loaded, so zero per-session cost; re-read only at
+  audit time). Pairs with the `context-doc-bloat` + `stated-not-derived-doc-facts`
+  catalog entries.
+
+`claude-md-curator/test_hook.py` keeps the triggers honest — sizable add and
+over-budget fire; tiny edits, non-targets, and the archive file stay silent.
+
 ## Install (as a plugin)
 
 ```text
@@ -213,8 +245,9 @@ claude-code-toolkit/
     note/               SKILL.md — frictionless note-to-self capture
     coverage-audit/     SKILL.md · checklist.py · test_checklist.py
     orchestrate/        SKILL.md — the subagent-orchestration decision tree
+    claude-md-audit/    SKILL.md — audit + trim a CLAUDE.md (index vs chapters)
   hooks/
-    hooks.json          registers the failure-mode, context-alert, subagent-nudge + coverage-nudge hooks
+    hooks.json          registers the failure-mode, context-alert, subagent-nudge, claude-md-curator + coverage-nudge hooks
   failure-modes/
     catalog.md          the bug-class catalog (the shared brain)
     rules.json          grep-able rules the hook runs
@@ -223,6 +256,8 @@ claude-code-toolkit/
     hook.py · test_hook.py   context-threshold alert -> offers /handoff
   subagent-nudge/
     hook.py · test_hook.py   parallelizable-task nudge -> offers /orchestrate
+  claude-md-curator/
+    hook.py · test_hook.py   CLAUDE.md bloat nudge -> offers /claude-md-audit
   coverage-nudge/
     hook.py · test_hook.py   source-changed-without-tests nudge -> offers /coverage-audit
   .github/workflows/
