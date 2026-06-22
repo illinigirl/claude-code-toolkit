@@ -195,17 +195,25 @@ reference).**
   `~/.claude/CLAUDE.md` / secret-or-local→ `CLAUDE.local.md`). Cheapest bloat to
   remove is the bloat that never lands. **Budget** — when the file exceeds
   `CLAUDE_MD_LINE_BUDGET` (default 200), it nudges a full audit (debounced once
-  per session). Silenceable with `CLAUDE_MD_AUDIT_DISABLED`; never auto-edits.
+  per session). **Leak guard** — when `CLAUDE.local.md` is edited but isn't
+  gitignored, it warns (that file holds personal/secret content and would be
+  committed; `git check-ignore`, fails quiet outside a repo). Silenceable with
+  `CLAUDE_MD_AUDIT_DISABLED`; never auto-edits.
 - **`/claude-md-audit`** is the judgment half: reads the whole file (+
   `CLAUDE.archive.md` if present) and reports per-section verdicts on concision,
   currency (stale facts vs the repo), usefulness, redundancy (incl. whether a new
-  addition is already covered), scope, and length. On approval it routes each
-  section: **keep / condense / extract-to-skill** (the primary release valve) **/
-  move-to-nested-CLAUDE.md** (area-specific; `.claude/rules` for path-scoped) **/
-  re-scope** (personal or secret content to `~/.claude/CLAUDE.md` or
-  `CLAUDE.local.md`) **/ archive** (stale → `CLAUDE.archive.md`, not auto-loaded)
-  **/ remove**. It never splits via `@import` (those load eagerly). Pairs with the
-  `context-doc-bloat` + `stated-not-derived-doc-facts` catalog entries.
+  addition is already covered), scope, and length. It also runs **cross-file
+  checks** over the whole loaded set: **contradictions** between CLAUDE.md /
+  nested / `.claude/rules` (which make Claude pick arbitrarily), and **dead
+  `.claude/rules` globs** whose `paths:` match nothing (so the rule silently
+  never loads). On approval it routes each section: **keep / condense /
+  extract-to-skill** (the primary release valve) **/ move-to-nested-CLAUDE.md**
+  (area-specific; `.claude/rules` for path-scoped) **/ re-scope** (personal or
+  secret content to `~/.claude/CLAUDE.md` or `CLAUDE.local.md`) **/ archive**
+  (stale → `CLAUDE.archive.md`) **/ remove**. It never splits via `@import`
+  (those load eagerly). Pairs with the `context-doc-bloat`,
+  `stated-not-derived-doc-facts`, `conflicting-instructions`, and
+  `dead-rule-scope` catalog entries.
 
 `claude-md-curator/test_hook.py` keeps the triggers honest — any net addition
 and over-budget fire; pure tweaks (net-0), non-targets, and the archive file
