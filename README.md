@@ -90,8 +90,18 @@ in `settings.json` `"env"`):
 
 ```jsonc
 "CONTEXT_ALERT_THRESHOLDS": "75",     // comma-separated %, default "75"
-"CONTEXT_ALERT_WINDOW": "1000000"     // tokens; default 200000 — set 1M for [1m] models
+"CONTEXT_ALERT_WINDOW": "1000000",    // tokens; default 200000
+"CONTEXT_ALERT_DISABLED": "1"         // set to turn the hook off entirely
 ```
+
+**If you run a 1M-context (`[1m]`) model, set `CONTEXT_ALERT_WINDOW` to
+`1000000`.** It defaults to 200000 and can't be auto-detected — the transcript
+records the base model id (e.g. `claude-opus-4-8`) with no `[1m]` marker — so
+an un-set 1M session would alert at ~15% full. The OS notification works on
+macOS (`cmux`/`osascript`) and Linux (`notify-send`); on other platforms the
+in-terminal warning and handoff offer still fire. To silence just the desktop
+popup, set `CONTEXT_ALERT_SILENT`; to turn the hook off completely, set
+`CONTEXT_ALERT_DISABLED`.
 
 `context-alert/test_hook.py` keeps it honest.
 

@@ -16,9 +16,14 @@ and never recover after a compact.
 
 Config (env):
   CONTEXT_ALERT_THRESHOLDS  comma-separated percentages, default "75"
-  CONTEXT_ALERT_WINDOW      context window in tokens, default 200000
-                            (set 1000000 when running a [1m] model)
+  CONTEXT_ALERT_WINDOW      context window in tokens, default 200000.
+                            Set 1000000 on a 1M-context ([1m]) model — this
+                            CANNOT be auto-detected: the transcript records the
+                            base model id (e.g. claude-opus-4-8) with no [1m]
+                            marker, so an un-set 1M session would alert ~5x too
+                            early. Configure it once if you run a 1M window.
   CONTEXT_ALERT_SILENT      set to suppress the OS notification (tests)
+  CONTEXT_ALERT_DISABLED    set to disable the hook entirely (clean no-op exit)
 
 Each threshold fires once per session (state in the temp dir) and re-arms
 when usage drops back below the lowest threshold (i.e. after a compact or
@@ -29,9 +34,9 @@ Output contract: exit 0 + JSON on stdout only when a threshold is crossed:
     a handoff checkpoint (must be nested with hookEventName per the hooks
     schema — a top-level additionalContext is ignored)
   - systemMessage (top-level) -> the user-visible warning
-Plus an OS notification (cmux if installed, else macOS osascript) so the
-alert lands even when the terminal isn't focused. Never blocks; on ANY
-internal error it exits 0 silently.
+Plus an OS notification (cmux if installed, else macOS osascript, else Linux
+notify-send) so the alert lands even when the terminal isn't focused. Never
+blocks; on ANY internal error it exits 0 silently.
 """
 import json
 import os
@@ -122,11 +127,20 @@ def _notify(title, body):
                 ["osascript", "-e", script],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
+        elif sys.platform.startswith("linux"):
+            # notify-send is the de-facto Linux desktop notifier; if it isn't
+            # installed the Popen raises and we fall through to the terminal msg.
+            subprocess.Popen(
+                ["notify-send", title, body],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
     except Exception:
         pass  # the in-terminal message still lands
 
 
 def main():
+    if os.environ.get("CONTEXT_ALERT_DISABLED"):
+        sys.exit(0)  # clean opt-out without disabling the whole plugin
     data = json.loads(sys.stdin.read() or "{}")
     if not isinstance(data, dict):
         sys.exit(0)
