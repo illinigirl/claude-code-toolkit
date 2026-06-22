@@ -70,7 +70,8 @@ def main():
         os.environ["TMPDIR"] = d  # state files land here
         claude = os.path.join(d, "CLAUDE.md")
 
-        # Sizable addition (under budget) -> prevention nudge, documented schema.
+        # Any addition (under budget) -> prevention nudge, documented schema,
+        # offering directive / skill / nested.
         write_file(claude, 50)
         rc, out = run("Edit", claude, old=block(0), new=block(14))
         ok = rc == 0 and bool(out)
@@ -80,24 +81,31 @@ def main():
             ac = hso.get("additionalContext", "")
             ok = (hso.get("hookEventName") == "PostToolUse"
                   and "skill" in ac.lower() and "directive" in ac.lower()
+                  and "nested" in ac.lower() and "scope" in ac.lower()
                   and "systemMessage" in p and "additionalContext" not in p)
-        check("sizable addition -> prevention nudge w/ schema", ok)
+        check("addition -> prevention nudge w/ kind+scope axes", ok)
 
-        # Tiny addition, under budget -> silent.
+        # Every addition is evaluated now — even a 2-line one fires prevention.
         write_file(claude, 50)
         rc, out = run("Edit", claude, old=block(0), new=block(2))
-        check("tiny addition under budget -> silent", rc == 0 and not out)
+        check("small addition under budget -> still fires", rc == 0 and bool(out))
 
-        # Over budget (small edit) -> audit nudge mentioning the budget + skill.
+        # A pure tweak (replaces text, net 0 lines added) -> silent.
+        write_file(claude, 50)
+        rc, out = run("Edit", claude, old=block(4), new=block(4))
+        check("pure tweak (net 0 added) -> silent", rc == 0 and not out)
+
+        # Over budget, net-0 edit -> audit nudge (budget path isolated, since
+        # any net addition would also fire prevention now).
         write_file(claude, 250)
-        rc, out = run("Edit", claude, old=block(0), new=block(1), session="s_over")
-        ok = rc == 0 and out and "budget" in json.loads(out)["systemMessage"].lower() \
-            or (out and "/claude-md-audit" in json.loads(out)["hookSpecificOutput"]["additionalContext"])
-        check("over budget -> audit nudge", rc == 0 and bool(out) and bool(ok))
+        rc, out = run("Edit", claude, old=block(3), new=block(3), session="s_over")
+        ok = (rc == 0 and out
+              and "/claude-md-audit" in json.loads(out)["hookSpecificOutput"]["additionalContext"])
+        check("over budget -> audit nudge", bool(ok))
 
-        # Budget nudge debounced: second over-budget edit same session -> silent.
-        rc, out = run("Edit", claude, old=block(0), new=block(1), session="s_over")
-        check("over-budget debounced same session -> silent", rc == 0 and not out)
+        # Budget nudge debounced: a second over-budget net-0 edit -> silent.
+        rc, out = run("Edit", claude, old=block(3), new=block(3), session="s_over")
+        check("over-budget debounced (net-0) -> silent", rc == 0 and not out)
 
         # Combined: over budget AND a big add (fresh session) -> both notes.
         write_file(claude, 250)
@@ -132,11 +140,11 @@ def main():
         rc, out = run("Write", big, new="whatever", session="s_write")
         check("Write over budget -> audit nudge", rc == 0 and bool(out))
 
-        # Configurable budget: raise it so 250 lines is fine.
+        # Configurable budget: raise it so 250 lines is fine; net-0 edit -> silent.
         write_file(claude, 250)
-        rc, out = run("Edit", claude, old=block(0), new=block(1),
+        rc, out = run("Edit", claude, old=block(3), new=block(3),
                       session="s_hibudget", CLAUDE_MD_LINE_BUDGET="500")
-        check("raised budget -> under cap -> silent", rc == 0 and not out)
+        check("raised budget + net-0 edit -> silent", rc == 0 and not out)
 
         # Disable switch: textbook trigger, clean no-op.
         write_file(claude, 250)

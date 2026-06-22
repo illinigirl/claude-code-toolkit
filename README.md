@@ -187,25 +187,28 @@ reference).**
 
 - **A PostToolUse hook** (auto-registered on install) that fires only on
   `CLAUDE.md` / `AGENTS.md` edits (pure mechanical work — no FS scan beyond a
-  line count, no LLM call). Two triggers: **prevention** — when an edit *adds* a
-  substantial block (≥ `CLAUDE_MD_ADD_LINES`, default 10), it nudges "directive
-  or reference? — if reference, make it a *skill* instead of growing the file"
-  (fires on every sizable addition; cheapest bloat to remove is the bloat that
-  never lands); and **budget** — when the file exceeds `CLAUDE_MD_LINE_BUDGET`
-  (default 200), it nudges a full audit (debounced once per session). Silenceable
-  with `CLAUDE_MD_AUDIT_DISABLED`; never auto-edits.
+  line count, no LLM call). Two triggers: **prevention** — on *every* net
+  addition (≥ `CLAUDE_MD_ADD_LINES`, default 1), it checks the new content on two
+  axes: **kind** (directive=keep / reference=→ a skill / area-specific=→ a nested
+  `CLAUDE.md` or `.claude/rules`) and **scope** (team→project file / personal→
+  `~/.claude/CLAUDE.md` / secret-or-local→ `CLAUDE.local.md`). Cheapest bloat to
+  remove is the bloat that never lands. **Budget** — when the file exceeds
+  `CLAUDE_MD_LINE_BUDGET` (default 200), it nudges a full audit (debounced once
+  per session). Silenceable with `CLAUDE_MD_AUDIT_DISABLED`; never auto-edits.
 - **`/claude-md-audit`** is the judgment half: reads the whole file (+
   `CLAUDE.archive.md` if present) and reports per-section verdicts on concision,
   currency (stale facts vs the repo), usefulness, redundancy (incl. whether a new
-  addition is already covered), and length. On approval it applies a **three-way
-  triage** — keep & tighten / **extract to a skill** (the primary release valve —
-  the content survives and loads on-demand) / archive stale guidance to
-  `CLAUDE.archive.md` (not auto-loaded, so zero per-session cost; re-read only at
-  audit time). Pairs with the `context-doc-bloat` + `stated-not-derived-doc-facts`
-  catalog entries.
+  addition is already covered), scope, and length. On approval it routes each
+  section: **keep / condense / extract-to-skill** (the primary release valve) **/
+  move-to-nested-CLAUDE.md** (area-specific; `.claude/rules` for path-scoped) **/
+  re-scope** (personal or secret content to `~/.claude/CLAUDE.md` or
+  `CLAUDE.local.md`) **/ archive** (stale → `CLAUDE.archive.md`, not auto-loaded)
+  **/ remove**. It never splits via `@import` (those load eagerly). Pairs with the
+  `context-doc-bloat` + `stated-not-derived-doc-facts` catalog entries.
 
-`claude-md-curator/test_hook.py` keeps the triggers honest — sizable add and
-over-budget fire; tiny edits, non-targets, and the archive file stay silent.
+`claude-md-curator/test_hook.py` keeps the triggers honest — any net addition
+and over-budget fire; pure tweaks (net-0), non-targets, and the archive file
+stay silent.
 
 ## Install (as a plugin)
 

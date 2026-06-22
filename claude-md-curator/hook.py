@@ -6,10 +6,14 @@ Keeps an auto-loaded context file (CLAUDE.md / CLAUDE.local.md / AGENTS.md)
 lean. A deterministic hook can't *judge* prose, so it does only the cheap,
 mechanical part and points at the `/claude-md-audit` skill for the judgment:
 
-  • Prevention (every sizable addition): when an edit ADDS a substantial block
-    (>= CLAUDE_MD_ADD_LINES, default 10) to a context file, nudge Claude to ask
-    "directive or reference?" — and if reference, suggest a skill INSTEAD of
-    growing the file. Cheapest bloat to remove is the bloat that never lands.
+  • Prevention (every addition): when an edit ADDS lines (>= CLAUDE_MD_ADD_LINES,
+    default 1 — i.e. every net addition) to a context file, nudge Claude to check
+    the NEW content on two axes — KIND (directive=keep / reference=-> a skill /
+    area-specific=-> a nested CLAUDE.md or .claude/rules) and SCOPE (team
+    convention=project CLAUDE.md / personal=~/.claude/CLAUDE.md / secret-or-local
+    =CLAUDE.local.md, gitignored). Cheapest bloat to remove is the bloat that
+    never lands. (Pure tweaks that replace text net zero added lines, so they
+    don't fire.)
   • Budget (over the line cap): when the file exceeds CLAUDE_MD_LINE_BUDGET
     (default 200), nudge a full /claude-md-audit (triage: keep / extract to a
     skill / archive). Debounced once per session per file so it doesn't nag —
@@ -20,7 +24,7 @@ skills are the chapters (on-demand reference).
 
 Config (env):
   CLAUDE_MD_LINE_BUDGET    soft line cap, default 200
-  CLAUDE_MD_ADD_LINES      "substantial block" threshold, default 10
+  CLAUDE_MD_ADD_LINES      min net lines added to evaluate, default 1 (every add)
   CLAUDE_MD_AUDIT_DISABLED set to disable the hook entirely (clean no-op exit)
 
 Output (PostToolUse): exit 0 + JSON on stdout only when it fires:
@@ -34,8 +38,11 @@ import re
 import sys
 import tempfile
 
-# Auto-loaded context files this hook curates. CLAUDE.archive.md is the demotion
-# target and is intentionally NOT here — editing the archive must not nudge.
+# Context files this hook curates. CLAUDE.md + CLAUDE.local.md auto-load every
+# session; AGENTS.md bears context only when a CLAUDE.md @imports or symlinks it
+# (Claude Code doesn't read AGENTS.md directly) — but that import is eager, so
+# it's still worth curating. CLAUDE.archive.md is the demotion target and is
+# intentionally NOT here — editing the archive must not nudge.
 TARGETS = {"CLAUDE.md", "CLAUDE.local.md", "AGENTS.md"}
 
 
@@ -122,7 +129,7 @@ def main():
         sys.exit(0)  # session_id lands in a temp filename — reject path-shaped
 
     budget = _int_env("CLAUDE_MD_LINE_BUDGET", 200)
-    add_threshold = _int_env("CLAUDE_MD_ADD_LINES", 10)
+    add_threshold = _int_env("CLAUDE_MD_ADD_LINES", 1)
     added = _added_lines(data)
 
     notes, files = [], []
@@ -133,16 +140,21 @@ def main():
             continue
         name = os.path.basename(path)
         over = lines > budget
-        big_add = added >= add_threshold
+        has_add = added >= add_threshold
 
-        if big_add:
-            # Prevention fires on EVERY sizable addition (not debounced).
+        if has_add:
+            # Prevention fires on EVERY net addition (not debounced).
             notes.append(
-                f"{name}: you just added ~{added} lines. Is this an "
-                "always-relevant *directive*, or *reference*? If reference "
-                "(a war story, how-to-run-X, operational detail), prefer a "
-                "skill that loads on-demand INSTEAD of growing the file — "
-                "and check it isn't already covered above."
+                f"{name}: you just added ~{added} line(s). Check the NEW content "
+                "on two axes. (1) KIND: always-relevant *directive* (keep), "
+                "*reference* (war story / how-to — move to an on-demand skill), "
+                "or *area-specific* (move to a nested CLAUDE.md / .claude/rules "
+                "for that subtree). (2) SCOPE: a team convention -> project "
+                "CLAUDE.md; your personal preference -> ~/.claude/CLAUDE.md; a "
+                "sandbox URL / personal test data / anything secret -> "
+                "CLAUDE.local.md (gitignored), never the committed file. Move it "
+                "to its right home rather than growing this file — and check it "
+                "isn't already covered above."
             )
             files.append(name)
         if over and not _budget_already_fired(session_id, path):
