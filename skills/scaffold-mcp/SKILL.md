@@ -37,7 +37,7 @@ books, so every tool returns real output immediately. Copy it out (without the
 local virtualenv/caches), prove it green, and drive the headline tool:
 
 ```bash
-DEST=<dest>/book-tracker      # default: the current working directory
+DEST=<dest>/book-tracker      # default: cwd — but avoid cloud-synced dirs (see below)
 rsync -a --exclude '.venv' --exclude '__pycache__' --exclude '.pytest_cache' \
   --exclude '.ruff_cache' "${CLAUDE_SKILL_DIR}/examples/book-tracker/" "$DEST/"
 cd "$DEST"
@@ -112,7 +112,11 @@ Ask only for what's missing; infer sensible defaults and confirm them.
 - **domain** — singular noun for the thing tracked, e.g. `trip`. Drives the
   example tool names (`add_trip`, `list_trips`, `summarize_trips`). Default `record`.
 - **dest** — parent directory to create the project in. Default: the current
-  working directory. The project goes in `<dest>/<name>`.
+  working directory. The project goes in `<dest>/<name>`. **Avoid cloud-synced
+  folders** (iCloud `Documents`/`Desktop`, Dropbox, OneDrive, Google Drive): sync
+  "optimize storage" can silently offload venv files, which breaks the MCP launcher
+  and stalls git. If cwd is under one, redirect to a non-synced dir like `~/dev`
+  or `~/code` and confirm.
 - **package** — Python package name. Default: `name` with separators removed
   (`trip-logger` → `triplogger`). Only ask if the default reads badly.
 - **author** — for `pyproject.toml` / `LICENSE`. Default `Your Name`; use the
