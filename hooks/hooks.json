@@ -28,6 +28,11 @@
             "type": "command",
             "command": "python3 ${CLAUDE_PLUGIN_ROOT}/context-alert/hook.py",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/subagent-nudge/hook.py",
+            "timeout": 10
           }
         ]
       }
