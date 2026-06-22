@@ -80,11 +80,12 @@ def main():
             p = json.loads(out)
             hso = p.get("hookSpecificOutput", {})
             ac = hso.get("additionalContext", "")
+            acl = ac.lower()
             ok = (hso.get("hookEventName") == "PostToolUse"
-                  and "skill" in ac.lower() and "directive" in ac.lower()
-                  and "nested" in ac.lower() and "scope" in ac.lower()
+                  and "skill" in acl and "directive" in acl
+                  and "nested" in acl and "rules" in acl and "scope" in acl
                   and "systemMessage" in p and "additionalContext" not in p)
-        check("addition -> prevention nudge w/ kind+scope axes", ok)
+        check("addition -> prevention nudge w/ kind(+rule)+scope axes", ok)
 
         # Every addition is evaluated now — even a 2-line one fires prevention.
         write_file(claude, 50)
