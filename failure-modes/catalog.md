@@ -123,3 +123,31 @@ Detectability tiers:
 - **Origin:** MM calibration — per-ride wait-time bias modeled per-user
   when wait time is objective (and per-user starves on sample size);
   logged as a design-improvement item.
+
+## stated-not-derived-doc-facts: Stated-not-derived doc facts
+- **Detectability:** hook (flag-for-review)
+- **Smell:** A volatile fact stated in prose (a count, a version, an
+  "N passing" claim) silently drifts out of sync with the code it
+  describes, because nothing ties the claim to its source. No error —
+  the doc just reads authoritative while being wrong.
+- **Signature:** a number in docs (`README.md` / `CLAUDE.md` /
+  `SKILL.md`) sitting next to a volatile noun —
+  `\(\d+\)` or `\d+ (tools?|tests?|cases?|passed)` near
+  `tool|test|case|eval` — with **no** test that re-derives it
+  (no `test_readme`-style guard reading the source). The number is
+  greppable, but confirming nothing pins it needs a look →
+  flag-for-review.
+- **Verify:** Is the fact generated at render time, pinned by a test
+  that re-derives it from the code, or hand-typed prose? Hand-typed
+  and unpinned → real instance.
+- **Fix pattern:** **Pinned, derived, or deleted — never just stated**
+  (same triage as protected coverage). Pin it with a test that
+  re-derives the fact from the source (README tool-count ==
+  `@mcp.tool()` count, with the heading-reworded failure guarded too);
+  or generate the line from the source; or, if it isn't worth a test,
+  delete the claim from the prose. A volatile fact with no enforcement
+  is an **expiring contract**, not a fact.
+- **Origin:** mood-mixer README "27 tests", MM `CLAUDE.md` "5 eval
+  cases", the scaffold `SKILL.md` "expect 49 passed" — all silently
+  stale from ordinary work. Now pinned by `test_readme.py`
+  (book-tracker), which goes red on drift instead of lying.

@@ -32,7 +32,11 @@ four such things, and this scaffold demonstrates all four:
 The model does the *creative / conversational* part; the server supplies the
 memory, the artifact, the private data, and the exact arithmetic.
 
-## What it does (the example tools)
+## The tools (5)
+
+<!-- The count above is pinned by tests/test_readme.py against the number of
+     @mcp.tool() decorators in server.py — keep it in sync, or the build goes
+     red. A doc fact is pinned, derived, or deleted, never just stated. -->
 
 - **`list_{{DOMAIN_PLURAL}}`** — query your local data, optionally filtered.
 - **`add_{{DOMAIN}}`** — persist a record (the cross-session memory).
