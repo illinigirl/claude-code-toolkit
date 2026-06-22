@@ -15,6 +15,7 @@ agents and MCP servers.
 | [handoff](skills/handoff/) | `/handoff` | Write a `PICKUP-*.md` session handoff (task, what's done, what's in flight, next steps, key paths, working norms) so a fresh session resumes cold. Stays local, never committed. |
 | [failure-scan](skills/failure-scan/) | `/failure-scan` | Review the current diff against the failure-mode catalog — the judgment classes a hook can't catch (plausible-but-wrong AI output, biased per-segment stats, dispatch-order coupling) — reporting concrete risks with each class's verify questions and fix pattern. |
 | [design-note](skills/design-note/) | `/design-note` | Write a structured `<feature>-DESIGN.md` before building — problem, the core reframe, the design with options + tradeoffs, edge cases, and open questions to decide at build time. |
+| [orchestrate](skills/orchestrate/) | `/orchestrate` | Recommend a good use of subagents — walk a 2-level decision tree (inline / single agent / multi-agent → pattern), defend item independence before any fan-out, hand back a copy-paste Agent/Workflow snippet, and run it only on your go-ahead. |
 | [note](skills/note/) | `/note` | Frictionless note-to-self — dump a thought and it's auto-classified into a bucket (`note`/`skill`/`mcp`/`todo`) under `~/.claude/notes/`, no category-picking. Bare `/note` lists everything; `/note <bucket>` lists one. |
 | [coverage-audit](skills/coverage-audit/) | `/coverage-audit` | Audit a project's coverage for **negative space** — run line coverage, then judge the misses against the gaps agent-written suites predictably leave (empty, boundary, error paths, scale/pagination, time, untested adapters, tests that can't fail). Reports the top gaps ranked by silent-failure risk + the cheapest tests to add, then proves its own completeness with a shipped validator (`checklist.py`). Verify proves it runs; coverage-audit proves it's protected. |
 
@@ -144,6 +145,36 @@ fail).
 `coverage-nudge/test_hook.py` and `skills/coverage-audit/test_checklist.py`
 keep both halves honest.
 
+## Subagent-nudge hook + `/orchestrate`
+
+The mechanisms for delegation (Agent, Workflow) exist and Claude is prompted to
+use them — but nothing *proactively suggests* "this task is subagent-shaped,"
+and the judgment of **whether to fan out, and in what shape** lives implicitly
+in the model's head. This pair externalizes it, in the toolkit's usual
+nudge-hook + judgment-skill shape.
+
+- **A UserPromptSubmit hook** (auto-registered on install) that spots a
+  subagent-shaped prompt — breadth/decomposition signals like "across the whole
+  codebase", "for each X", "find/fix all Y", "comprehensive". Pure regex on the
+  prompt text (no FS scan, no LLM call, ~no latency), **flag-for-review** not
+  prescriptive ("this *might* parallelize; if the items aren't independent,
+  ignore me"), fires **once per session**, and is fully silenceable with
+  `SUBAGENT_NUDGE_DISABLED`. It doesn't orchestrate — it points Claude at
+  `/orchestrate`.
+- **`/orchestrate`** is the judgment half: a **2-level decision tree** — Level 1
+  the quick call (inline / single agent / multi-agent), Level 2 the pattern
+  (parallel-read, worktree-mutate, pipeline, loop-until-dry, adversarial-verify,
+  judge-panel). It **advises → offers → executes only on your go-ahead**, hands
+  back a copy-paste Agent/Workflow snippet, and surfaces the rough token cost +
+  Workflow opt-in.
+- Its load-bearing rule: **parallelism is only valid over INDEPENDENT items.**
+  The skill must state *why* items are independent before recommending fan-out;
+  if it can't, it picks a pipeline or stays inline. This is pinned to the
+  `parallel-without-independence` entry in the failure-mode catalog.
+
+`subagent-nudge/test_hook.py` keeps the trigger boundary honest — breadth fires,
+single-target prompts (`audit this function`) stay silent.
+
 ## Install (as a plugin)
 
 ```text
@@ -181,14 +212,17 @@ claude-code-toolkit/
     design-note/        SKILL.md — write a <feature>-DESIGN.md
     note/               SKILL.md — frictionless note-to-self capture
     coverage-audit/     SKILL.md · checklist.py · test_checklist.py
+    orchestrate/        SKILL.md — the subagent-orchestration decision tree
   hooks/
-    hooks.json          registers the failure-mode, context-alert + coverage-nudge hooks
+    hooks.json          registers the failure-mode, context-alert, subagent-nudge + coverage-nudge hooks
   failure-modes/
     catalog.md          the bug-class catalog (the shared brain)
     rules.json          grep-able rules the hook runs
     hook.py · test_hook.py
   context-alert/
     hook.py · test_hook.py   context-threshold alert -> offers /handoff
+  subagent-nudge/
+    hook.py · test_hook.py   parallelizable-task nudge -> offers /orchestrate
   coverage-nudge/
     hook.py · test_hook.py   source-changed-without-tests nudge -> offers /coverage-audit
   .github/workflows/

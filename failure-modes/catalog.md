@@ -151,3 +151,28 @@ Detectability tiers:
   cases", the scaffold `SKILL.md` "expect 49 passed" — all silently
   stale from ordinary work. Now pinned by `test_readme.py`
   (book-tracker), which goes red on drift instead of lying.
+
+## parallel-without-independence: Fan-out over non-independent items
+- **Detectability:** judgment
+- **Smell:** Work is split across parallel subagents (or parallel
+  tasks) for speed, but the items aren't actually independent — they
+  share a file, a counter, an ordering, or coordinate via "skip if
+  already handled". The fan-out races or double-acts and the result is
+  silently wrong; the wall-clock win hides the correctness loss.
+- **Signature:** none — behavioral, and it lives in the *plan*, not the
+  code. The tell is a fan-out justified only by "it's faster" with no
+  stated reason the items can't interfere. (Closely related to
+  dispatch-order-coupling, one level up: there the coordination is
+  implicit within one process; here it's across parallel workers.)
+- **Verify:** Can you state in one sentence *why* these items are
+  independent — no shared mutable state, no ordering, no implicit
+  coordination? If two of them ran at the exact same instant, would the
+  outcome still be correct?
+- **Fix pattern:** **Independence is a claim you must defend, not a
+  default.** If you can defend it, fan out. If you can't, model the
+  dependency explicitly — an ordered `pipeline()` (stages, not a
+  barrier), worktree isolation for parallel file mutations, or just stay
+  inline. Speed never licenses parallelism over coupled work.
+- **Origin:** the `/orchestrate` advisor + subagent-nudge hook — the
+  guard that keeps "this is parallelizable" honest rather than merely
+  enthusiastic.
