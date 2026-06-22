@@ -149,6 +149,11 @@ def main():
         ok = rc == 0 and out and "crossed 90%" in json.loads(out)["hookSpecificOutput"]["additionalContext"]
         check("re-climb past 90 after partial drop -> fires 90 again", bool(ok))
 
+        # Disable switch: even well over threshold, the hook is a clean no-op.
+        write_transcript(t, usage_line(95_000))
+        rc, out = run(payload(t, sid()), CONTEXT_ALERT_DISABLED="1")
+        check("CONTEXT_ALERT_DISABLED -> silent no-op", rc == 0 and not out)
+
         # Event name passes through for UserPromptSubmit.
         write_transcript(t, usage_line(80_000))
         rc, out = run(payload(t, sid(), event="UserPromptSubmit"))
