@@ -1,6 +1,6 @@
 ---
 name: claude-md-audit
-description: Audit a CLAUDE.md (or AGENTS.md) for health — concision, currency, usefulness, redundancy, and length vs a line budget — then, on approval, tighten it and move reference material to on-demand skills (and stale guidance to CLAUDE.archive.md) so it stays the lean index it should be. Use when the curator hook nudges, when a context file crosses its line budget, when an addition might already be covered, or whenever a CLAUDE.md feels long or stale.
+description: Audit a CLAUDE.md (or AGENTS.md) for health — concision, currency, usefulness, redundancy, scope, and length vs a line budget — plus cross-file checks (contradictions between CLAUDE.md/rules that make Claude pick arbitrarily, and dead .claude/rules path globs that silently never load). On approval, tighten it and move reference material to on-demand skills (stale guidance to CLAUDE.archive.md). Use when the curator hook nudges, when a context file crosses its line budget, when an addition might already be covered, when instructions seem to conflict, or whenever a CLAUDE.md feels long or stale.
 ---
 
 # /claude-md-audit
@@ -25,6 +25,12 @@ curator hook passed *what was just added*, evaluate that block first.
 State the file and its **line count vs the budget** (`CLAUDE_MD_LINE_BUDGET`,
 default 200) up front.
 
+For the cross-file checks in step 2.5, also enumerate the *other* instruction
+sources that share this session's context: parent-dir and nested `CLAUDE.md`
+(loaded for the working tree), `~/.claude/CLAUDE.md`, and `.claude/rules/*.md`
+(plus `~/.claude/rules/`). You don't need to deeply audit each, but you need
+their content to spot contradictions and dead rules.
+
 ## 2. Evaluate every section against five lenses
 
 For each section / block:
@@ -47,6 +53,22 @@ For each section / block:
   (gitignored), never the committed file. Flag anything sitting in the wrong
   scope (e.g. a personal preference or a secret in the shared project file).
 - **Bucket** — for anything not staying as-is, which destination (next step)?
+
+## 2.5 Cross-file checks (the whole loaded set, not just one file)
+
+Because every CLAUDE.md / rule in the hierarchy is concatenated into context,
+two more silent failures live *between* files:
+
+- **Contradictions.** If two instructions conflict (e.g. root says "use pnpm,"
+  a nested file says "use npm"; or two files give different test commands),
+  Claude picks one arbitrarily — a silent coin-flip. Compare the loaded set and
+  flag every conflicting or divergent-duplicate pair, with a recommended
+  resolution (usually: keep the most-specific/most-correct, delete the other).
+  See the `conflicting-instructions` catalog entry.
+- **Dead `.claude/rules/` globs.** A rule whose `paths:` frontmatter glob matches
+  *no* file in the repo never loads — a silently inert rule (an expiring
+  contract). For each path-scoped rule, check its globs still match something;
+  flag the ones that don't (the glob drifted, or the code moved/was renamed).
 
 ## 3. Triage each demotable section
 

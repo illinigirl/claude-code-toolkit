@@ -18,6 +18,9 @@ mechanical part and points at the `/claude-md-audit` skill for the judgment:
     (default 200), nudge a full /claude-md-audit (triage: keep / extract to a
     skill / archive). Debounced once per session per file so it doesn't nag —
     and so the skill's own curating edits don't re-trigger it.
+  • Leak guard: when CLAUDE.local.md is edited but is NOT gitignored, warn — it
+    holds personal/secret content and will otherwise be committed. Once per
+    session; uses `git check-ignore`, fails quiet outside a repo.
 
 The principle it enforces: CLAUDE.md is the index (always-relevant directives);
 skills are the chapters (on-demand reference).
@@ -99,22 +102,48 @@ def _state_path(session_id):
     return os.path.join(tempfile.gettempdir(), f"claude-md-curator-{session_id}.json")
 
 
-def _budget_already_fired(session_id, path):
-    """Once per session per file for the over-budget audit nudge."""
+def _fired_once(session_id, path, key):
+    """Once per session per (key, file). `key` namespaces independent debounces
+    (e.g. over-budget vs gitignore warning) in one state file without clobbering
+    each other."""
     state = _state_path(session_id)
-    fired = []
+    data = {}
     if os.path.exists(state):
         try:
             with open(state, encoding="utf-8") as f:
-                fired = json.load(f).get("budget_fired", [])
+                data = json.load(f)
         except Exception:
-            fired = []
+            data = {}
+    fired = data.get(key, [])
     if path in fired:
         return True
     fired.append(path)
+    data[key] = fired
     with open(state, "w", encoding="utf-8") as f:
-        json.dump({"budget_fired": fired}, f)
+        json.dump(data, f)
     return False
+
+
+def _local_not_gitignored(path):
+    """True if a CLAUDE.local.md is NOT gitignored (so personal/secret content
+    risks being committed). Uses `git check-ignore`; fail toward quiet — if git
+    is absent, it's not a repo, or anything errors, return False (no warning)."""
+    import subprocess
+    d = os.path.dirname(os.path.abspath(path))
+    try:
+        inside = subprocess.run(
+            ["git", "-C", d, "rev-parse", "--is-inside-work-tree"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if inside.returncode != 0 or inside.stdout.strip() != "true":
+            return False  # not a git repo -> nothing to commit into, stay quiet
+        ignored = subprocess.run(
+            ["git", "-C", d, "check-ignore", "-q", path],
+            capture_output=True, timeout=5,
+        )
+        return ignored.returncode == 1  # 0=ignored, 1=not ignored, other=error
+    except Exception:
+        return False
 
 
 def main():
@@ -157,11 +186,23 @@ def main():
                 "isn't already covered above."
             )
             files.append(name)
-        if over and not _budget_already_fired(session_id, path):
+        if over and not _fired_once(session_id, path, "budget_fired"):
             notes.append(
                 f"{name}: now {lines} lines, over the {budget}-line budget. "
                 "Run /claude-md-audit to triage (keep & tighten / extract to a "
                 "skill / archive stale)."
+            )
+            if name not in files:
+                files.append(name)
+        # CLAUDE.local.md holds personal/secret content — it MUST be gitignored
+        # or it gets committed. Check once per session per file (status is stable).
+        if (name == "CLAUDE.local.md"
+                and _local_not_gitignored(path)
+                and not _fired_once(session_id, path, "local_gitignore_fired")):
+            notes.append(
+                f"{name} is NOT gitignored — it's meant for personal/secret "
+                "content (sandbox URLs, test data) and will be committed as-is. "
+                "Add it to .gitignore before it leaks into source control."
             )
             if name not in files:
                 files.append(name)

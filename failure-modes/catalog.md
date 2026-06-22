@@ -219,3 +219,37 @@ Detectability tiers:
   `/memory-audit` skill + `memory-curator` hook enforce this.
 - **Origin:** the auto-memory twin of context-doc-bloat — same index/chapters
   cure, but MEMORY.md *truncates* at load where CLAUDE.md only dilutes.
+
+## conflicting-instructions: Contradictory context instructions
+- **Detectability:** judgment
+- **Smell:** Two instructions that share the session's context disagree — root
+  `CLAUDE.md` vs a nested one, vs `~/.claude/CLAUDE.md`, vs a `.claude/rules/`
+  file (e.g. "use pnpm" vs "use npm"; two different test commands). All are
+  concatenated, so Claude **picks one arbitrarily** — a silent coin-flip with no
+  error, and the loser's intent just evaporates.
+- **Signature:** none — behavioral, across files. Surfaces only by reading the
+  whole loaded set together; a per-file check can't see it.
+- **Verify:** Do any two loaded instructions give different answers to the same
+  question (tooling, command, style, where files go)? Would following both be
+  impossible?
+- **Fix pattern:** One source of truth per rule. Keep the most-specific or
+  most-correct statement; delete or correct the other. Periodically reconcile
+  across `CLAUDE.md` + nested + `.claude/rules/`. `/claude-md-audit` flags these.
+- **Origin:** the docs warn it explicitly ("if two rules contradict, Claude may
+  pick one arbitrarily"); folded into `/claude-md-audit` as a cross-file check.
+
+## dead-rule-scope: Path-scoped rule whose glob matches nothing
+- **Detectability:** hook (flag-for-review) / judgment
+- **Smell:** A `.claude/rules/*.md` file with `paths:` frontmatter whose glob no
+  longer matches any file (the code moved, was renamed, or the glob was wrong)
+  silently **never loads**. The rule looks active in the repo but is inert — an
+  expiring contract that quietly expired.
+- **Signature:** a `paths:` glob in a rule file with zero matching files in the
+  repo. Greppable-ish (parse frontmatter, glob), but confirming intent is
+  judgment.
+- **Verify:** For each path-scoped rule, do its globs still match real files? If
+  zero match, is that intentional (future path) or drift?
+- **Fix pattern:** Fix the glob to match the moved/renamed path, or delete the
+  rule if its target is gone. Treat the glob as an expiring contract — it must
+  keep matching to keep working. `/claude-md-audit` checks this. Cousin of
+  stated-not-derived-doc-facts.

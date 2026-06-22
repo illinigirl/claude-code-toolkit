@@ -10,6 +10,7 @@ Run:  python3 test_hook.py   (exit 0 = all pass, 1 = a failure)
 """
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -151,6 +152,34 @@ def main():
         rc, out = run("Edit", claude, old=block(0), new=block(20),
                       CLAUDE_MD_AUDIT_DISABLED="1")
         check("CLAUDE_MD_AUDIT_DISABLED -> silent no-op", rc == 0 and not out)
+
+        # CLAUDE.local.md leak guard (needs git). Net-0 + under budget isolates
+        # the gitignore warning from the other triggers.
+        if shutil.which("git"):
+            repo = os.path.join(d, "gitrepo")
+            os.makedirs(repo, exist_ok=True)
+            subprocess.run(["git", "init", "-q", repo], check=False)
+            local = os.path.join(repo, "CLAUDE.local.md")
+            write_file(local, 20)
+            rc, out = run("Edit", local, old=block(3), new=block(3), session="s_leak1")
+            ok = (rc == 0 and out
+                  and "gitignored" in json.loads(out)["hookSpecificOutput"]["additionalContext"].lower())
+            check("CLAUDE.local.md not gitignored -> leak warning", bool(ok))
+
+            with open(os.path.join(repo, ".gitignore"), "w", encoding="utf-8") as f:
+                f.write("CLAUDE.local.md\n")
+            rc, out = run("Edit", local, old=block(3), new=block(3), session="s_leak2")
+            check("CLAUDE.local.md gitignored -> silent", rc == 0 and not out)
+
+            # Outside any git repo -> fail quiet (no leak warning).
+            bare = os.path.join(d, "norepo")
+            os.makedirs(bare, exist_ok=True)
+            barelocal = os.path.join(bare, "CLAUDE.local.md")
+            write_file(barelocal, 20)
+            rc, out = run("Edit", barelocal, old=block(3), new=block(3), session="s_leak3")
+            check("CLAUDE.local.md outside a repo -> silent", rc == 0 and not out)
+        else:
+            print("  SKIP  leak-guard tests (git not available)")
 
         # Fail-safes.
         rc, out = run_raw("not json at all")

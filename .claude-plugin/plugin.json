@@ -2,7 +2,7 @@
   "name": "claude-code-toolkit",
   "displayName": "Claude Code Toolkit",
   "description": "Skills to scaffold MCP servers, verify an MCP is green and well-formed, audit repos for public release, audit test coverage for negative space, write session handoffs, write structured design notes, recommend a good use of subagents, audit a CLAUDE.md for bloat, audit auto memory for the load-cutoff, capture quick notes-to-self, and review a diff against a failure-mode catalog — plus hooks that auto-flag risky patterns, alert when session context crosses a threshold (offering a handoff checkpoint), nudge when a task looks parallelizable (offering an orchestration plan), nudge when a CLAUDE.md grows past its budget (offering to move reference material to skills), nudge when MEMORY.md crosses the auto-memory load cutoff, and nudge when source changes outpace test changes (offering a coverage audit).",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "author": {
     "name": "Megan Schott"
   },
