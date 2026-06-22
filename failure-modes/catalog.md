@@ -176,3 +176,26 @@ Detectability tiers:
 - **Origin:** the `/orchestrate` advisor + subagent-nudge hook — the
   guard that keeps "this is parallelizable" honest rather than merely
   enthusiastic.
+
+## context-doc-bloat: Auto-loaded context file grows unbounded
+- **Detectability:** hook (flag-for-review)
+- **Smell:** `CLAUDE.md` (or `AGENTS.md`) — injected into context *every
+  session* — only ever grows. Each session appends guidance; reference
+  material, restated lessons, and stale facts accumulate because nothing
+  re-evaluates the file. The signal (the directives that matter) drowns in
+  bulk, and every line is paid for on every session.
+- **Signature:** a context file over its line budget (~200), or an edit that
+  *adds* a substantial block (≥~10 lines) to one. Greppable that something
+  grew; whether it *should* have is judgment → flag-for-review.
+- **Verify:** Is each section an *always-relevant directive*, or *reference*
+  that's only sometimes needed? Could the newest addition fold into a section
+  already there? Is every volatile fact still true?
+- **Fix pattern:** **CLAUDE.md is the index; skills are the chapters.** Keep
+  only always-relevant directives; move reference-grade content to a skill that
+  loads on-demand (replace it with a one-line pointer); archive genuinely stale
+  guidance to `CLAUDE.archive.md` (not auto-loaded) rather than deleting.
+  Prevention beats cure — when *adding* reference, make it a skill instead of an
+  append. The `/claude-md-audit` skill + `claude-md-curator` hook enforce this.
+- **Origin:** an MM `CLAUDE.md` drifted to 232 lines with a thrice-restated
+  lesson and a stale `~22 tools` (really 28); trimmed to 191 once a human
+  looked. Related: stated-not-derived-doc-facts (the per-fact version).
