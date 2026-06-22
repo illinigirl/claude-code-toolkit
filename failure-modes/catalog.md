@@ -199,3 +199,23 @@ Detectability tiers:
 - **Origin:** an MM `CLAUDE.md` drifted to 232 lines with a thrice-restated
   lesson and a stale `~22 tools` (really 28); trimmed to 191 once a human
   looked. Related: stated-not-derived-doc-facts (the per-fact version).
+
+## memory-index-overflow: Auto-memory index silently truncated at load
+- **Detectability:** hook (flag-for-review)
+- **Smell:** Claude Code auto memory's `MEMORY.md` loads only its **first 200
+  lines / 25 KB** each session — content past that is silently NOT loaded. Claude
+  writes this file itself across sessions, so it grows without anyone deciding
+  to; once it crosses the cutoff, the tail entries are inert "memories" that
+  look stored but never reach context. A hard truncation, not a soft budget —
+  the same shape as a scan that silently drops rows past the first page.
+- **Signature:** an edited `MEMORY.md` (in a `memory/` dir, canonically
+  `~/.claude/projects/<project>/memory/`) over 200 lines or 25 KB. Greppable
+  that it's over; which entries to keep vs demote is judgment → flag-for-review.
+- **Verify:** Which entries currently fall past line 200 / 25 KB (i.e. aren't
+  loaded right now)? Is `MEMORY.md` a lean index, or is detail inflating it?
+- **Fix pattern:** **MEMORY.md is the index; topic files are the chapters.** Keep
+  MEMORY.md to one-line pointers under the cutoff; move detail into topic files
+  (uncapped, load on-demand); drop stale entries; reconcile contradictions. The
+  `/memory-audit` skill + `memory-curator` hook enforce this.
+- **Origin:** the auto-memory twin of context-doc-bloat — same index/chapters
+  cure, but MEMORY.md *truncates* at load where CLAUDE.md only dilutes.

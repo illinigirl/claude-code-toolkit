@@ -22,6 +22,11 @@
             "type": "command",
             "command": "python3 ${CLAUDE_PLUGIN_ROOT}/claude-md-curator/hook.py",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/memory-curator/hook.py",
+            "timeout": 10
           }
         ]
       }
