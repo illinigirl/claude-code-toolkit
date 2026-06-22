@@ -13,7 +13,9 @@ Deliberately conservative and quiet:
   - pure regex on the prompt text only (no FS scan, no LLM call, ~no latency);
   - flag-for-review, never prescriptive — the nudge says "this MIGHT
     parallelize; if the items aren't independent, ignore me";
-  - fires at most once per session (state in the temp dir);
+  - fires once per DISTINCT prompt (a resubmit of the same request won't
+    re-fire), so every parallelizable request gets flagged — the conservative
+    triggers are the noise control, not a session-wide cap;
   - fully silenceable.
 
 The load-bearing caveat it always carries: parallelism is only valid when the
@@ -29,6 +31,7 @@ Output contract: exit 0 + JSON on stdout only when it fires:
   - systemMessage (top-level) -> the user-visible one-liner
 Never blocks; on ANY internal error it exits 0 silently.
 """
+import hashlib
 import json
 import os
 import re
@@ -69,13 +72,25 @@ def _state_path(session_id):
     )
 
 
-def already_nudged(session_id):
-    """Once per session: True if we've already nudged. Marks it on first call."""
+def already_nudged(session_id, prompt):
+    """Per DISTINCT prompt: True if we've already nudged for this exact prompt
+    this session (so resubmitting the same request doesn't re-fire). A different
+    qualifying prompt still nudges — flagging every parallelizable request is the
+    point; the conservative triggers handle noise, not a session-wide cap."""
     state = _state_path(session_id)
+    fp = hashlib.sha256(prompt.strip().encode("utf-8")).hexdigest()[:16]
+    fired = []
     if os.path.exists(state):
+        try:
+            with open(state, encoding="utf-8") as f:
+                fired = json.load(f).get("fired", [])
+        except Exception:
+            fired = []
+    if fp in fired:
         return True
+    fired.append(fp)
     with open(state, "w", encoding="utf-8") as f:
-        json.dump({"nudged": True}, f)
+        json.dump({"fired": fired}, f)
     return False
 
 
@@ -95,7 +110,7 @@ def main():
     hits = matched_triggers(prompt)
     if not hits:
         sys.exit(0)
-    if already_nudged(session_id):
+    if already_nudged(session_id, prompt):
         sys.exit(0)
 
     output = {

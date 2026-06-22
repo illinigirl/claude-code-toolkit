@@ -160,9 +160,11 @@ nudge-hook + judgment-skill shape.
   codebase", "for each X", "find/fix all Y", "comprehensive". Pure regex on the
   prompt text (no FS scan, no LLM call, ~no latency), **flag-for-review** not
   prescriptive ("this *might* parallelize; if the items aren't independent,
-  ignore me"), fires **once per session**, and is fully silenceable with
-  `SUBAGENT_NUDGE_DISABLED`. It doesn't orchestrate — it points Claude at
-  `/orchestrate`.
+  ignore me"), fires **once per distinct prompt** (every parallelizable request
+  gets flagged; resubmitting the *same* prompt won't re-fire — the conservative
+  triggers are the noise control, not a session-wide cap), and is fully
+  silenceable with `SUBAGENT_NUDGE_DISABLED`. It doesn't orchestrate — it points
+  Claude at `/orchestrate`.
 - **`/orchestrate`** is the judgment half: a **2-level decision tree** — Level 1
   the quick call (inline / single agent / multi-agent), Level 2 the pattern
   (parallel-read, worktree-mutate, pipeline, loop-until-dry, adversarial-verify,
