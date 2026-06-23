@@ -1,9 +1,10 @@
 # claude-code-toolkit
 
 A small toolkit of [Claude Code](https://code.claude.com) skills, distributed as
-an installable **plugin marketplace**. Skills plus three hooks today (failure-mode
-flagging, a context-threshold alert, and a coverage nudge); room to grow into
-agents and MCP servers.
+an installable **plugin marketplace**. Skills plus a set of advisory hooks
+(failure-mode flagging, a context-threshold alert, a coverage nudge, CLAUDE.md /
+memory curators, and an enforcement-redundancy nudge); room to grow into agents
+and MCP servers.
 
 ## Skills
 
@@ -223,6 +224,34 @@ reference).**
 and over-budget fire; pure tweaks (net-0), non-targets, and the archive file
 stay silent.
 
+## Enforcement-redundancy nudge
+
+The curator's mirror image. The curator catches redundancy when you **edit
+CLAUDE.md**; this catches it when you **mechanize a rule** — write a hook or
+skill that *enforces* something the prose still spells out. That moment is the
+blind spot: you're not touching CLAUDE.md, so nothing re-evaluates the line the
+enforcement just made redundant. The doc stays static while the world under it
+changed.
+
+- **A PostToolUse hook** (auto-registered on install) that fires when an
+  *enforcement artifact* is created/edited — a `SKILL.md`, a `hook.py`, or a hook
+  registration (`hooks.json`, or a `settings.json` edit touching a `hooks` block)
+  — **and** a context file (CLAUDE.md / AGENTS.md / CLAUDE.local.md) exists nearby
+  (else nothing to prune → silent). Debounced **once per session** (the ask is a
+  single redundancy pass, however many artifacts you wrote); `ENFORCEMENT_NUDGE_DISABLED`
+  off-switch; never auto-edits. It carries one rule: a hook/skill usually
+  enforces only the *mechanical half* of a directive, so the nudge says **compress
+  the instruction to a one-line pointer at the enforcement and keep the
+  judgment/why — don't delete the prose wholesale.**
+- **`/claude-md-audit`** is the judgment half: it now scans the enforcement
+  surface (`.claude/skills`, registered hooks) and flags directives a hook/skill
+  mechanizes, routing them to **condense-to-pointer**, not remove.
+
+`enforcement-nudge/test_hook.py` keeps it honest — skill / hook / hook-registration
+near a context file fire; an ordinary source file, a permissions-only settings
+edit, an artifact with no context file nearby, and a second fire in the same
+session stay silent.
+
 ## Memory curator hook + `/memory-audit`
 
 The auto-memory twin of the CLAUDE.md pair. Claude Code's auto memory lives at
@@ -290,7 +319,7 @@ claude-code-toolkit/
     claude-md-audit/    SKILL.md — audit + trim a CLAUDE.md (index vs chapters)
     memory-audit/       SKILL.md — audit auto memory vs the load cutoff
   hooks/
-    hooks.json          registers the failure-mode, context-alert, subagent-nudge, claude-md-curator, memory-curator + coverage-nudge hooks
+    hooks.json          registers the failure-mode, context-alert, subagent-nudge, claude-md-curator, memory-curator, enforcement-nudge + coverage-nudge hooks
   failure-modes/
     catalog.md          the bug-class catalog (the shared brain)
     rules.json          grep-able rules the hook runs
@@ -301,6 +330,8 @@ claude-code-toolkit/
     hook.py · test_hook.py   parallelizable-task nudge -> offers /orchestrate
   claude-md-curator/
     hook.py · test_hook.py   CLAUDE.md bloat nudge -> offers /claude-md-audit
+  enforcement-nudge/
+    hook.py · test_hook.py   new hook/skill -> CLAUDE.md may be redundant -> /claude-md-audit
   memory-curator/
     hook.py · test_hook.py   MEMORY.md load-cutoff nudge -> offers /memory-audit
   coverage-nudge/

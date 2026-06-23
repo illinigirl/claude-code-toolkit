@@ -1,6 +1,6 @@
 ---
 name: claude-md-audit
-description: Audit a CLAUDE.md (or AGENTS.md) for health — concision, currency, usefulness, redundancy, scope, and length vs a line budget — plus cross-file checks (contradictions between CLAUDE.md/rules that make Claude pick arbitrarily, and dead .claude/rules path globs that silently never load). On approval, tighten it and move reference material to on-demand skills (stale guidance to CLAUDE.archive.md). Use when the curator hook nudges, when a context file crosses its line budget, when an addition might already be covered, when instructions seem to conflict, or whenever a CLAUDE.md feels long or stale.
+description: Audit a CLAUDE.md (or AGENTS.md) for health — concision, currency, usefulness, redundancy, scope, and length vs a line budget — plus cross-file checks (contradictions between CLAUDE.md/rules that make Claude pick arbitrarily, dead .claude/rules path globs that silently never load, and directives a hook or skill now mechanically enforces). On approval, tighten it and move reference material to on-demand skills (stale guidance to CLAUDE.archive.md). Use when the curator or enforcement-nudge hook nudges, when a context file crosses its line budget, when an addition might already be covered, when instructions seem to conflict, when you just wrote a hook/skill that may mechanize a rule, or whenever a CLAUDE.md feels long or stale.
 ---
 
 # /claude-md-audit
@@ -69,6 +69,23 @@ two more silent failures live *between* files:
   *no* file in the repo never loads — a silently inert rule (an expiring
   contract). For each path-scoped rule, check its globs still match something;
   flag the ones that don't (the glob drifted, or the code moved/was renamed).
+- **Directives now mechanized by a hook or skill** (doc-vs-enforcement
+  redundancy). When prose tells Claude to *do* (or *not do*) something that a
+  hook now enforces, or that a skill now performs, the *mechanical* instruction
+  is dead weight — the enforcement carries it every time, the prose only when
+  this file happens to be in context. This is the redundancy the curator hook
+  *can't* see: it fires on CLAUDE.md edits, but mechanization happens when you
+  write the **hook/skill**, not the doc. Scan the enforcement surface —
+  `.claude/skills/*/SKILL.md` (and plugin skills), and registered hooks
+  (`settings.json` / `settings.local.json` `hooks`, `.claude/hooks/`, plugin
+  `hooks.json`) — and match each against the directives here. For every match,
+  the verdict is **condense to a pointer, NOT remove**: a hook/skill almost
+  always enforces only the *mechanical half* (the "always paginate", the "run
+  the audit") while the *judgment half* (the war story, the *why*, when to
+  surface it) still earns its place. Replace the mechanical instruction with a
+  one-line pointer at the enforcing hook/skill; keep the reasoning. Only delete
+  outright if the line was *purely* mechanical with no judgment left once the
+  enforcement exists.
 
 ## 3. Triage each demotable section
 
@@ -137,6 +154,8 @@ don't re-raise it this session.
 - **Archive is not auto-loaded** (it isn't named `CLAUDE.md`), so it costs no
   context; you only re-read it here. Surface anything in it that's now safe to
   delete permanently, or worth resurrecting.
-- Pairs with the `claude-md-curator` hook (which nudges you here) and the
-  `parallel`/`stated-not-derived` catalog discipline — same "pin it, derive it,
-  or move it; don't let it rot" spirit.
+- Pairs with two hooks that nudge you here from opposite directions: the
+  `claude-md-curator` hook (when you *edit* CLAUDE.md) and the
+  `enforcement-nudge` hook (when you write a *hook/skill* that may mechanize a
+  rule). Same "pin it, derive it, or move it; don't let it rot" spirit as the
+  `parallel`/`stated-not-derived` catalog discipline.

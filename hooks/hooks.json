@@ -8,6 +8,11 @@
             "type": "command",
             "command": "python3 ${CLAUDE_PLUGIN_ROOT}/failure-modes/hook.py",
             "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/enforcement-nudge/hook.py",
+            "timeout": 10
           }
         ]
       },
